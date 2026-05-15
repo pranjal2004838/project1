@@ -2,7 +2,7 @@ import streamlit as st
 import json
 import time
 from scrapers.hyderabad.github_hyd_scraper import search_hyderabad_github_users, format_github_user_as_startup
-from scrapers.hyderabad.thub_scraper import scrape_thub_portfolio
+from scrapers.hyderabad.search_hyd_scraper import search_hyderabad_startups
 from ai.hyderabad_scorer import score_hyderabad_startup, generate_hyderabad_email
 
 def get_classification(score):
@@ -20,9 +20,9 @@ def run_hyderabad_scan():
     for user in github_users:
         all_results.append(format_github_user_as_startup(user))
     
-    progress.progress(0.3, text="Scraping T-Hub portfolio...")
-    thub_startups = scrape_thub_portfolio()
-    all_results.extend(thub_startups)
+    progress.progress(0.2, text="Hunting for stealth startups via search...")
+    search_results = search_hyderabad_startups()
+    all_results.extend(search_results)
     
     results = []
     total = len(all_results)
@@ -91,7 +91,7 @@ def render_hyderabad_tab():
             run_hyderabad_scan()
             st.session_state.scan_running = False
             st.rerun()
-        st.caption("Sources: T-Hub · GitHub Hyderabad")
+        st.caption("Sources: GitHub · Smart Search (News & Signals)")
     with col_status:
         if st.session_state.last_scan_hyderabad:
             st.info(f"Last scan: {st.session_state.last_scan_hyderabad}")
@@ -111,7 +111,7 @@ def render_hyderabad_tab():
             col1, col2 = st.columns([3, 1])
             
             with col1:
-                source_icons = {'thub': '🏛️', 'github': '⚫'}
+                source_icons = {'thub': '🏛️', 'github': '⚫', 'search': '🔍'}
                 icon = source_icons.get(startup.get('source', ''), '📍')
                 st.markdown(f"### {icon} {startup.get('company_name', 'Unknown Startup')}")
                 

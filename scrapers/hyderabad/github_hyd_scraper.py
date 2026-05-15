@@ -19,9 +19,8 @@ def search_hyderabad_github_users():
 
     g = Github(GITHUB_TOKEN)
     
-    # Query: users in hyderabad with followers > 5, sorted by joined date
-    # (Matches the plan's suggested query)
-    query = "location:hyderabad followers:>1"
+    # Aggressive query for founders and tech leads in Hyderabad
+    query = 'location:hyderabad "founder" OR "cto" OR "ceo" OR "startup"'
     users = g.search_users(query, sort="joined", order="desc")
     
     results = []
@@ -39,8 +38,8 @@ def search_hyderabad_github_users():
                 "blog": user.blog,
                 "bio": user.bio,
                 "public_repos": user.public_repos,
-                "email": user.email,
-                "github_url": f"https://github.com/{user.login}"
+                "github_url": f"https://github.com/{user.login}",
+                "public_repos": user.public_repos
             }
             
             # Skip if no repos
