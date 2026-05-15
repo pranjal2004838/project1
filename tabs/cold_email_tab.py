@@ -1,4 +1,5 @@
 import streamlit as st
+from utils.cold_email_scan_runner import run_cold_email_scan
 
 def render_cold_email_tab(db):
     st.header("📧 Cold Email (Founders)")
@@ -9,7 +10,10 @@ def render_cold_email_tab(db):
     col_scan, col_status = st.columns([2, 3])
     with col_scan:
         if st.button("🔍 Run Global Founder Scan", type="primary"):
-            st.info("Scan started in background...")
+            with st.spinner("Searching GitHub for founders and small teams..."):
+                found, passed = run_cold_email_scan(db)
+                st.success(f"Scan complete! Found {found} targets, {passed} passed.")
+            st.rerun()
         
         st.caption("Sources: GitHub · Wellfound · Product Hunt")
 
@@ -56,7 +60,7 @@ def render_cold_email_card(target: dict, db):
                 st.caption(f"Stack: {target['tech_stack']}")
                 
             if target.get('fit_reason'):
-                st.success(f"**Fit:** {target['fit_reason']}")
+                st.success(f"**AI Opinion:** {target['fit_reason']}")
 
         with col2:
             score = target.get('score', 0)

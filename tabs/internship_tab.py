@@ -1,4 +1,5 @@
 import streamlit as st
+from utils.internship_scan_runner import run_internship_scan
 
 def render_internship_tab(db):
     st.header("🚀 Internship & Contract")
@@ -9,7 +10,10 @@ def render_internship_tab(db):
     col_scan, col_status = st.columns([2, 3])
     with col_scan:
         if st.button("🔍 Run Internship Scan", type="primary"):
-            st.info("Scan started in background...")
+            with st.spinner("Scanning GitHub for small tech teams..."):
+                found, passed = run_internship_scan(db)
+                st.success(f"Scan complete! Found {found} companies, {passed} passed.")
+            st.rerun()
         
         st.caption("Sources: GitHub Orgs · Wellfound · IndieHackers")
 
@@ -54,7 +58,7 @@ def render_internship_card(opp: dict, db):
             st.caption(f"Source: **{opp.get('source', '')}**")
             
             if opp.get('fit_reason'):
-                st.success(f"**Fit:** {opp['fit_reason']}")
+                st.success(f"**AI Opinion:** {opp['fit_reason']}")
                 
             if opp.get('description'):
                 st.write(opp['description'][:300] + "...")

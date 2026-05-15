@@ -107,7 +107,7 @@ def render_hyderabad_card(startup: dict, db):
 
             # Fit reason
             if startup.get('fit_reason'):
-                st.success(f"✅ {startup['fit_reason']}")
+                st.success(f"**AI Opinion:** {startup['fit_reason']}")
 
         with col2:
             # Score badge & Classification

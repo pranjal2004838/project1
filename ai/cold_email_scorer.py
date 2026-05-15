@@ -18,9 +18,9 @@ Activity: {activity_signal}
 Return ONLY a JSON object:
 {{
   "score": <0-100>,
-  "fit_reason": "<why their stack/product matches Pranjal>",
-  "disqualify_reason": "<null or: 'too large', 'wrong stack', 'non-technical'>",
-  "pass": <true if score >= 75 AND disqualify_reason is null>
+  "fit_reason": "<AI Opinion: Analyze if this founder/company is worth reaching out to. Even if the tech stack is slightly different, if it's an active Hyderabad startup, give it a fair score.>",
+  "disqualify_reason": "<null or: 'massive company', 'not a tech product'>",
+  "pass": <true if score >= 50>
 }}
 """
 

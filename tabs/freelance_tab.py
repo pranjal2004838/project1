@@ -62,7 +62,9 @@ def render_freelance_card(lead: dict, db):
             # Pain point & Service
             if lead.get('pain_point'):
                 st.warning(f"**Pain Point:** {lead['pain_point']}")
-            if lead.get('service_match'):
+            if lead.get('fit_reason'):
+                st.success(f"**AI Opinion:** {lead['fit_reason']}")
+            elif lead.get('service_match'):
                 st.success(f"**Match:** {lead['service_match']}")
                 
             # Body snippet

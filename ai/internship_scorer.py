@@ -21,18 +21,18 @@ Contact Info: {contact_type} - {contact_url}
 Return ONLY a JSON object:
 {{
   "score": <0-100>,
-  "fit_reason": "<one sentence: why Pranjal is a good fit for this role>",
+  "fit_reason": "<AI Opinion: Be honest. If it's a weak match, say why, but if there's any potential, highlight it.>",
   "stack_overlap": ["<matching skills>"],
   "urgency_signal": "<what suggests they need someone now>",
-  "disqualify_reason": "<null or: 'senior only', 'unpaid', 'wrong stack', '11+ employees', 'not tech company'>",
-  "pass": <true if score >= 78 AND disqualify_reason is null>
+  "disqualify_reason": "<ONLY for absolute non-tech or massive companies. If it's a small tech company, DO NOT disqualify even if the stack is different.>",
+  "pass": <true if score >= 50> 
 }}
 
 Scoring rules:
-- 85-100: Early stage startup (1-10 people), directly asking for a developer/intern in React/Flutter/Node, clear paid opportunity.
-- 78-84: Good stack match, small company, but maybe slightly vague on terms.
-- 50-77: Medium company, partial stack match, or competitive regular application portal.
-- 0-49: Senior role required, unpaid, large corporate, or unrelated field.
+- 85-100: Definitely Best Opportunity.
+- 70-84: Good Fit.
+- 50-69: Maybe / Worth a look.
+- 0-49: Waste of Time.
 """
 
 def score_internship_opportunity(opp_data: dict) -> dict:
