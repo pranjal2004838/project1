@@ -1,6 +1,6 @@
 import time
 from scrapers.github_org_scraper import search_small_orgs_and_founders
-from ai.internship_scorer import score_internship_opportunity
+from ai.internship_scorer import score_internship_opportunity, generate_internship_email
 from database.db_client import DatabaseClient
 
 def run_internship_scan(db: DatabaseClient):
@@ -26,11 +26,15 @@ def run_internship_scan(db: DatabaseClient):
             if opp["pass"]:
                 items_passed += 1
                 
+            print(f"[*] Generating email for: {opp.get('company')}...")
+            email_data = generate_internship_email(opp)
+            opp["generated_subject"] = email_data.get("subject", "")
+            opp["generated_message"] = email_data.get("message", "")
+                
             # Save to DB
-            # We need to map 'name' and 'company' correctly for the opportunities table
             db.execute_query(
-                "INSERT INTO opportunities (name, company, source, url, stack, description, score, fit_reason, urgency_signal, pass) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (opp['name'], opp['company'], opp['source'], opp['url'], opp['stack'], opp['description'], opp['score'], opp['fit_reason'], opp['urgency_signal'], opp['pass']),
+                "INSERT INTO opportunities (name, company, source, url, stack, description, score, fit_reason, urgency_signal, generated_subject, generated_message, pass) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (opp['name'], opp['company'], opp['source'], opp['url'], opp['stack'], opp['description'], opp['score'], opp['fit_reason'], opp['urgency_signal'], opp['generated_subject'], opp['generated_message'], opp['pass']),
                 commit=True
             )
             

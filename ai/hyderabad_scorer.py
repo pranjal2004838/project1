@@ -24,11 +24,11 @@ GitHub: {github_url}
 Return ONLY a JSON object:
 {{
   "score": <0-100>,
-  "fit_reason": "<one sentence: why Pranjal is a good fit for this company>",
+  "fit_reason": "<AI Opinion: Be honest. Even if the stack isn't a perfect match, analyze if they could use Pranjal's skills.>",
   "stack_overlap": ["<matching skills>"],
   "urgency_signal": "<what suggests they might need help: recent launch, active commits, small team, etc.>",
-  "disqualify_reason": "<null or: 'too large', 'wrong stack', 'no recent activity', 'not tech product', 'services company not product'>",
-  "pass": <true if score >= 75 AND disqualify_reason is null AND stack_overlap has 2+ items>,
+  "disqualify_reason": "<null or: 'massive company', 'not a tech product'>",
+  "pass": <true if score >= 50>,
   "suggested_contact_approach": "<direct email | github issue | website contact form>"
 }}
 

@@ -64,9 +64,9 @@ def run_hyderabad_scan(db: DatabaseClient):
             if startup["pass"]:
                 items_passed += 1
                 
-            # Automatically generate email
+            # Automatically generate email using the updated startup dict
             print(f"[*] Generating email for startup: {startup.get('company_name')}...")
-            email_data = generate_hyderabad_email(scoring_data)
+            email_data = generate_hyderabad_email(startup)
             startup["generated_subject"] = email_data.get("subject", "")
             startup["generated_message"] = email_data.get("message", "")
                 

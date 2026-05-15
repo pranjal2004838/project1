@@ -46,3 +46,29 @@ def score_internship_opportunity(opp_data: dict) -> dict:
         contact_url=opp_data.get('contact_url', '')
     )
     return call_gemini(prompt)
+
+INTERNSHIP_EMAIL_PROMPT = """
+Write a confident outreach message to a small tech company/startup asking for a short-term internship or contract.
+
+Target: {company}
+Role/Context: {name}
+Stack: {stack}
+Why it's a fit: {fit_reason}
+
+Tone: Peer-to-peer. Confident. Not desperate. Mention you are an ECE student in Hyderabad available for 2 months, but focus on your 3 years of freelancing and OSS contributions.
+
+Return JSON:
+{{
+  "subject": "<Subject line>",
+  "message": "<Plain text email body>"
+}}
+"""
+
+def generate_internship_email(opp_data: dict) -> dict:
+    prompt = INTERNSHIP_EMAIL_PROMPT.format(
+        company=opp_data.get('company', 'Unknown'),
+        name=opp_data.get('name', 'Unknown Role'),
+        stack=opp_data.get('stack', ''),
+        fit_reason=opp_data.get('fit_reason', '')
+    )
+    return call_gemini(prompt)
