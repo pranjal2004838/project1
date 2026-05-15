@@ -1,6 +1,7 @@
 import streamlit as st
 import time
 from scrapers.reddit_scraper import scrape_reddit_leads
+from scrapers.linkedin_scraper import search_linkedin_leads
 from ai.freelance_scorer import score_freelance_lead, generate_freelance_message
 
 def run_freelance_scan():
@@ -9,9 +10,13 @@ def run_freelance_scan():
     raw_leads = scrape_reddit_leads()
     results = []
     
-    progress = st.progress(0, text="Fetching Reddit posts...")
+    progress = st.progress(0, text="Scraping Reddit and HackerNews...")
+    reddit_leads = scrape_reddit_leads()
     
-    for i, lead in enumerate(raw_leads):
+    progress.progress(0.2, text="Searching LinkedIn for freelance posts...")
+    linkedin_leads = search_linkedin_leads(query_type="freelance")
+    
+    raw_leads = reddit_leads + linkedin_leads
         try:
             progress.progress((i + 1) / max(len(raw_leads), 1), text=f"Scoring lead {i+1}/{len(raw_leads)} with Gemini...")
             analysis = score_freelance_lead(lead)
@@ -52,7 +57,7 @@ def render_freelance_tab():
             run_freelance_scan()
             st.session_state.scan_running = False
             st.rerun()
-        st.caption("Sources: Reddit subreddits (r/entrepreneur, r/webdev, etc.)")
+        st.caption("Sources: Reddit · HackerNews · LinkedIn Search")
     with col_status:
         if st.session_state.last_scan_freelance:
             st.info(f"Last scan: {st.session_state.last_scan_freelance}")

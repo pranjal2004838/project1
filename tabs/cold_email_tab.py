@@ -1,6 +1,7 @@
 import streamlit as st
 import time
 from scrapers.github_org_scraper import search_small_orgs_and_founders
+from scrapers.linkedin_scraper import search_linkedin_leads
 from ai.cold_email_scorer import score_cold_email_target, generate_founder_cold_email
 
 def get_classification(score):
@@ -11,10 +12,26 @@ def get_classification(score):
 
 def run_cold_email_scan():
     """Runs the scan and stores results in session_state."""
-    raw_targets = search_small_orgs_and_founders(query_term="founder")
-    results = []
+    progress = st.progress(0, text="Searching GitHub for global founders...")
+    github_founders = search_small_orgs_and_founders(query_term="founder")
     
-    progress = st.progress(0, text="Searching GitHub for founders...")
+    progress.progress(0.3, text="Searching LinkedIn for active founders...")
+    linkedin_leads = search_linkedin_leads(query_type="founder")
+    
+    # Format LinkedIn results
+    linkedin_founders = []
+    for lead in linkedin_leads:
+        linkedin_founders.append({
+            "name": lead['name'],
+            "company": lead['title'],
+            "description": lead['description'],
+            "url": lead['url'],
+            "source": "linkedin",
+            "activity_signal": "Active on LinkedIn"
+        })
+    
+    raw_targets = github_founders + linkedin_founders
+    results = []
 
     for i, target in enumerate(raw_targets):
         try:
@@ -51,7 +68,7 @@ def render_cold_email_tab():
             run_cold_email_scan()
             st.session_state.scan_running = False
             st.rerun()
-        st.caption("Sources: GitHub Orgs & active founders")
+        st.caption("Sources: GitHub Orgs · LinkedIn Search")
     with col_status:
         if st.session_state.last_scan_cold:
             st.info(f"Last scan: {st.session_state.last_scan_cold}")

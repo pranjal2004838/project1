@@ -3,6 +3,7 @@ import json
 import time
 from scrapers.hyderabad.github_hyd_scraper import search_hyderabad_github_users, format_github_user_as_startup
 from scrapers.hyderabad.search_hyd_scraper import search_hyderabad_startups
+from scrapers.linkedin_scraper import search_linkedin_leads
 from ai.hyderabad_scorer import score_hyderabad_startup, generate_hyderabad_email
 
 def get_classification(score):
@@ -17,12 +18,27 @@ def run_hyderabad_scan():
     
     progress = st.progress(0, text="Searching GitHub for Hyderabad founders...")
     github_users = search_hyderabad_github_users()
-    for user in github_users:
-        all_results.append(format_github_user_as_startup(user))
-    
-    progress.progress(0.2, text="Hunting for stealth startups via search...")
+    progress.progress(0.2, text="Hunting for stealth startups via Search...")
     search_results = search_hyderabad_startups()
-    all_results.extend(search_results)
+    
+    progress.progress(0.3, text="Finding Hyderabad founders on LinkedIn...")
+    linkedin_leads = search_linkedin_leads(query_type="hyderabad")
+    
+    # Format LinkedIn results to match startup schema
+    linkedin_startups = []
+    for lead in linkedin_leads:
+        linkedin_startups.append({
+            "company_name": lead['name'],
+            "description": lead['description'],
+            "company_url": lead['url'],
+            "source": "linkedin",
+            "tech_stack": []
+        })
+    
+    # Format GitHub results
+    github_startups = [format_github_user_as_startup(u) for u in github_users]
+    
+    all_results = github_startups + search_results + linkedin_startups
     
     results = []
     total = len(all_results)
@@ -91,7 +107,7 @@ def render_hyderabad_tab():
             run_hyderabad_scan()
             st.session_state.scan_running = False
             st.rerun()
-        st.caption("Sources: GitHub · Smart Search (News & Signals)")
+        st.caption("Sources: GitHub · LinkedIn · Smart Search")
     with col_status:
         if st.session_state.last_scan_hyderabad:
             st.info(f"Last scan: {st.session_state.last_scan_hyderabad}")

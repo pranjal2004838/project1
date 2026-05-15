@@ -1,6 +1,7 @@
 import streamlit as st
 import time
 from scrapers.github_org_scraper import search_small_orgs_and_founders
+from scrapers.linkedin_scraper import search_linkedin_leads
 from ai.internship_scorer import score_internship_opportunity, generate_internship_email
 
 def get_classification(score):
@@ -9,12 +10,24 @@ def get_classification(score):
     elif score >= 50: return "🤔 Maybe"
     else: return "❌ Waste of Time"
 
-def run_internship_scan():
-    """Runs the scan and stores results in session_state."""
-    raw_opps = search_small_orgs_and_founders(query_term="startup")
-    results = []
-    
     progress = st.progress(0, text="Searching GitHub for small tech teams...")
+    github_opps = search_small_orgs_and_founders(query_term="startup")
+    
+    progress.progress(0.3, text="Searching LinkedIn for internship posts...")
+    linkedin_leads = search_linkedin_leads(query_type="internship")
+    
+    # Format LinkedIn results
+    linkedin_opps = []
+    for lead in linkedin_leads:
+        linkedin_opps.append({
+            "company": lead['name'],
+            "description": lead['description'],
+            "url": lead['url'],
+            "source": "linkedin",
+            "name": lead['title']
+        })
+    
+    raw_opps = github_opps + linkedin_opps
 
     for i, opp in enumerate(raw_opps):
         try:
@@ -52,7 +65,7 @@ def render_internship_tab():
             run_internship_scan()
             st.session_state.scan_running = False
             st.rerun()
-        st.caption("Sources: GitHub Orgs & small teams")
+        st.caption("Sources: GitHub Orgs · LinkedIn Search")
     with col_status:
         if st.session_state.last_scan_internship:
             st.info(f"Last scan: {st.session_state.last_scan_internship}")
