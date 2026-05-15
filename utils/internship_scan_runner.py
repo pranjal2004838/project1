@@ -20,6 +20,8 @@ def run_internship_scan(db: DatabaseClient):
                 "score": analysis.get("score", 0),
                 "fit_reason": analysis.get("fit_reason", ""),
                 "urgency_signal": analysis.get("urgency_signal", ""),
+                "stage": analysis.get("stage", "Growing"),
+                "angle": analysis.get("angle", "Your stack exactly, can start next week"),
                 "pass": 1 if analysis.get("pass") else 0
             })
             

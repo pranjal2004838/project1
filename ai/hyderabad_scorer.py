@@ -62,17 +62,15 @@ Target startup:
 
 Rules for the email:
 - Subject line: SPECIFIC to what they're building. NOT "Internship Inquiry". NOT "Collaboration Request".
-  Examples: "React developer available — noticed you're building {product_type}"
-             "Available to help ship {feature_area} this summer"
-- Opening line: One sentence about what they're building. NOT "I came across your company". 
-  Say something specific: "Your Flutter-based logistics tool caught my attention — the offline-first approach is hard to get right."
-- Body (3 sentences max): 
-  1. Two specific skills that match their stack
-  2. One concrete proof point (a project or OSS contribution)
-  3. Low-pressure offer: "Happy to do a small paid test task first" OR "Can share relevant code from similar projects"
-- Closing: Single line. NOT "Looking forward to hearing from you." NOT "I hope this finds you well."
-  Use: "If the timing works, let's talk." OR "Worth a quick call if you're open to it."
-- Signature: Pranjal Jha | github.com/pranjal2004838 | pranjaljha703@gmail.com
+  Examples: "React developer available — noticed you're building {company_name}"
+             "Available to help ship your {tech_stack} product this summer"
+- Body: Use THIS EXACT angle and structure (adapt the placeholders to fit):
+  "Hyderabad dev here (JNTUH ECE). Your product uses {tech_stack}. I've shipped 30+ projects, contributed to Mozilla and Zulip. Available full-time 2 months. Can meet in person. Worth a quick call?"
+  (Do not copy it word-for-word if it sounds weird, but keep it extremely close to this length and punchiness.)
+- Signature: 
+  Pranjal Jha
+  github.com/pranjal2004838
+  pranjaljha703@gmail.com
 
 NEVER SAY: "I am passionate", "I am hardworking", "I would be honored", "leverage", "synergy"
 NEVER MENTION: JNTUH, CGPA, "student", "internship" in the subject line

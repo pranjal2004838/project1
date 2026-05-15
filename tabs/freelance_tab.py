@@ -19,7 +19,7 @@ def run_freelance_scan():
                 "score": analysis.get("score", 0),
                 "service_match": analysis.get("service_match", ""),
                 "urgency": analysis.get("urgency", "low"),
-                "pain_point": analysis.get("pain_point", ""),
+                "hidden_pain": analysis.get("hidden_pain", ""),
                 "fit_reason": analysis.get("fit_reason", ""),
             })
             # Auto-generate message
@@ -75,8 +75,8 @@ def render_freelance_tab():
             with col1:
                 st.markdown(f"### {lead.get('title', 'Untitled')}")
                 st.caption(f"**{lead.get('channel', '')}** · {lead.get('posted_at', '')[:10]}")
-                if lead.get('pain_point'):
-                    st.warning(f"**Pain Point:** {lead['pain_point']}")
+                if lead.get('hidden_pain'):
+                    st.warning(f"**Hidden Pain Detected:** {lead['hidden_pain']}")
                 if lead.get('fit_reason') or lead.get('service_match'):
                     st.success(f"**AI Opinion:** {lead.get('fit_reason') or lead.get('service_match')}")
                 if lead.get('body'):

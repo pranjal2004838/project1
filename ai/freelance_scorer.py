@@ -17,10 +17,10 @@ URL: {url}
 Return ONLY a JSON object:
 {{
   "score": <0-100>,
-  "service_match": "<which of Pranjal's services fits this best, or null>",
+  "hidden_pain": "<Infer the REAL problem. E.g., 'Manually copying data' -> 'form to CRM sync'>",
+  "service_match": "<which of Pranjal's services solves this pain best, or null>",
   "fit_reason": "<AI Opinion: 1-2 sentences. Is this worth Pranjal's time? Why or why not?>",
   "urgency": "<high | medium | low>",
-  "pain_point": "<one short sentence describing their main problem>",
   "disqualify_reason": "<null or: 'too low budget', 'wrong stack/platform', 'full-time job', 'just chatting/no intent'>",
   "pass": <true if score >= 50>
 }}
@@ -44,14 +44,14 @@ Pranjal's background:
 Target Lead:
 - Platform: {platform}
 - Title: {title}
-- Pain point: {pain_point}
-- Service match: {service_match}
+- Hidden Pain: {hidden_pain}
+- Service Match: {service_match}
 
 Rules for the message:
-- Opening: Acknowledge their specific problem/post. "Saw your post about {pain_point}."
-- Body (2-3 sentences): Mention that you've solved similar issues or built similar things. Briefly mention relevant skills/experience. 
-- Offer: Provide a small piece of free advice OR offer to jump on a quick no-pressure call to discuss.
-- Closing: "Let me know if you'd like to chat." or similar.
+- Opening: Lead with what you noticed (the hidden pain). "Noticed you're struggling with {hidden_pain}."
+- Body (2-3 sentences): Mention that you've solved similar issues using {service_match}. Briefly mention your 3 years of experience.
+- Offer: Provide a small piece of free advice OR offer to jump on a quick no-pressure call to scope it out.
+- Tone: Peer-to-peer. Confident. Not desperate.
 - Do NOT include generic greetings like "Dear sir/madam" or "Hope this finds you well".
 - Keep it under 100 words.
 
@@ -74,7 +74,7 @@ def generate_freelance_message(lead_data: dict) -> dict:
     prompt = FREELANCE_MESSAGE_PROMPT.format(
         platform=lead_data.get('platform', 'Unknown'),
         title=lead_data.get('title', 'No Title'),
-        pain_point=lead_data.get('pain_point', 'their issue'),
+        hidden_pain=lead_data.get('hidden_pain', 'their issue'),
         service_match=lead_data.get('service_match', 'web development')
     )
     return call_gemini(prompt)

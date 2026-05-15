@@ -31,8 +31,15 @@ Target: {founder_name} at {company_name}
 Context: {activity_signal}
 Stack: {tech_stack}
 
-Tone: Confident, peer-to-peer. NOT a student looking for a break. Lead with their product. One proof point max.
-Ask: Short project or code review.
+Rules for the email:
+- Subject line: Casual, peer-to-peer. e.g., "Loved what you shipped at {company_name}", "React dev — can help you ship faster"
+- Tone: Peer-to-peer. "I can help you ship faster." DO NOT sound like a job applicant. DO NOT ask for an internship.
+- Body (2-3 sentences): 
+  1. Acknowledge something specific they built or their tech stack.
+  2. Briefly mention you are a dev with 3 years of experience and 30+ projects.
+  3. Offer to take some technical debt or feature backlog off their hands to help them move faster.
+- Closing: "Worth a quick chat?" or "If you need an extra set of hands, let me know."
+- Do NOT include generic greetings like "Hope this finds you well".
 
 Return JSON:
 {{

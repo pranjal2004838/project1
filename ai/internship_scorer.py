@@ -21,6 +21,8 @@ Contact Info: {contact_type} - {contact_url}
 Return ONLY a JSON object:
 {{
   "score": <0-100>,
+  "stage": "<Pre-MVP | MVP | Early traction | Growing>",
+  "angle": "<Choose one: 'I build MVPs in FlutterFlow/Bubble', 'Can handle your feature backlog', 'Firebase + Node scalability', 'Your stack exactly, can start next week'>",
   "fit_reason": "<AI Opinion: Be honest. If it's a weak match, say why, but if there's any potential, highlight it.>",
   "stack_overlap": ["<matching skills>"],
   "urgency_signal": "<what suggests they need someone now>",
@@ -53,9 +55,15 @@ Write a confident outreach message to a small tech company/startup asking for a 
 Target: {company}
 Role/Context: {name}
 Stack: {stack}
+Identified Stage: {stage}
+Your Outreach Angle: {angle}
 Why it's a fit: {fit_reason}
 
 Tone: Peer-to-peer. Confident. Not desperate. Mention you are an ECE student in Hyderabad available for 2 months, but focus on your 3 years of freelancing and OSS contributions.
+
+Rules for the message:
+- The body MUST incorporate your specific outreach angle: "{angle}" seamlessly into the pitch.
+- Keep it concise, 3-4 sentences max.
 
 Return JSON:
 {{
@@ -69,6 +77,8 @@ def generate_internship_email(opp_data: dict) -> dict:
         company=opp_data.get('company', 'Unknown'),
         name=opp_data.get('name', 'Unknown Role'),
         stack=opp_data.get('stack', ''),
+        stage=opp_data.get('stage', 'Growing'),
+        angle=opp_data.get('angle', 'Your stack exactly, can start next week'),
         fit_reason=opp_data.get('fit_reason', '')
     )
     return call_gemini(prompt)

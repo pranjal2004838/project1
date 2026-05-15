@@ -24,6 +24,8 @@ def run_internship_scan():
                 "score": analysis.get("score", 0),
                 "fit_reason": analysis.get("fit_reason", ""),
                 "urgency_signal": analysis.get("urgency_signal", ""),
+                "stage": analysis.get("stage", "Growing"),
+                "angle": analysis.get("angle", "Your stack exactly, can start next week"),
             })
             # Auto-generate email
             email_data = generate_internship_email(opp)
@@ -73,6 +75,8 @@ def render_internship_tab():
             with col1:
                 st.markdown(f"### {opp.get('company', 'Unknown Company')}")
                 st.caption(f"Source: **{opp.get('source', '')}**")
+                if opp.get('stage') and opp.get('angle'):
+                    st.warning(f"**Target Angle:** [Stage: {opp['stage']}] — *{opp['angle']}*")
                 if opp.get('fit_reason'):
                     st.success(f"**AI Opinion:** {opp['fit_reason']}")
                 if opp.get('urgency_signal'):
