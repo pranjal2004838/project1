@@ -33,11 +33,12 @@ Return ONLY a JSON object:
 }}
 
 Scoring rules:
-- 85–100: Small team (2–5 people), active in last 2 weeks, uses React/Flutter/Firebase/Node, clearly a product company
-- 70–84: Small team, active in last month, partial stack overlap
-- 50–69: Medium team or partial signals
-- 0–49: Too big, wrong domain, no activity, services/consulting firm
-- HARD REJECT: 11+ employees, services company (not product), no tech stack match, last activity > 60 days
+- USE THE FULL 0-100 RANGE. Do not just use 0 or 100. Be granular (e.g., 72, 88).
+- 85–100: Perfect match. Small team (2-5 people), active in last 2 weeks, uses your core stack (React/Flutter/Node), product-focused.
+- 70–84: Strong match. Active team, partial stack match, or clear technical need.
+- 50–69: Moderate match. Might be worth a quick message.
+- 20–49: Weak match. Wrong stack or too big, but still a tech company.
+- 0–19: Not a startup or completely dead activity.
 """
 
 HYDERABAD_EMAIL_PROMPT = """

@@ -31,10 +31,12 @@ Return ONLY a JSON object:
 }}
 
 Scoring rules:
-- 85-100: Definitely Best Opportunity.
-- 70-84: Good Fit.
-- 50-69: Maybe / Worth a look.
-- 0-49: Waste of Time.
+- USE THE FULL 0-100 RANGE. Do not just use 0 or 100. Be granular (e.g., 72, 88).
+- 85–100: Perfect match (stack + small team + active).
+- 70–84: Strong match.
+- 50–69: Moderate match.
+- 20–49: Weak match (wrong stack or larger team).
+- 0–19: Not a startup or completely inactive.
 """
 
 def score_internship_opportunity(opp_data: dict) -> dict:

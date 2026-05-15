@@ -26,10 +26,12 @@ Return ONLY a JSON object:
 }}
 
 Scoring rules:
-- 85-100: Immediate need, explicitly asking to hire, matches Pranjal's exact services (e.g., "Need a Wix dev", "Looking for someone to build a booking app").
-- 72-84: Needs help, might hire, partial match or slightly vague.
-- 50-71: Discussing a problem but no clear intent to hire, or general tech question.
-- 0-49: Tutorial, self-promotion, completely unrelated, or looking for a co-founder without pay.
+- USE THE FULL 0-100 RANGE. Do not just use 0 or 100. Be granular (e.g., 72, 88).
+- 85–100: Clear hire intent + tech match + high urgency (e.g., "Need this fixed today").
+- 70–84: Potential match + tech overlap (e.g., "Looking for a React dev for next week").
+- 50–69: Vague but interesting; suggests a problem you can solve.
+- 20–49: Discussion or low-intent post, but related to your skills.
+- 0–19: Completely unrelated or spam.
 """
 
 FREELANCE_MESSAGE_PROMPT = """
