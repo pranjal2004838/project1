@@ -91,16 +91,20 @@ def search_hyderabad_github_users():
     return results
 
 def format_github_user_as_startup(profile):
-    """Convert GitHub profile data into the database format."""
+    """Convert GitHub profile data into the database format safely."""
+    recent_repos = profile.get("recent_repos", [])
+    repo_names = ", ".join([r['name'] for r in recent_repos[:2]]) if recent_repos else ""
+    blog = profile.get("blog") or ""
     return {
-        "company_name": profile["company"] if profile["company"] else profile["name"] if profile["name"] else profile["username"],
-        "founder_name": profile["name"] if profile["name"] else profile["username"],
+        "company_name": profile.get("company") or profile.get("name") or profile.get("username", "Unknown"),
+        "founder_name": profile.get("name") or profile.get("username", ""),
         "source": "github",
-        "company_url": profile["blog"] if profile["blog"] and profile["blog"].startswith("http") else profile["github_url"],
-        "github_url": profile["github_url"],
-        "email": profile["email"],
-        "tech_stack": profile["tech_stack"],
-        "description": profile["bio"] if profile["bio"] else f"GitHub user with {profile['public_repos']} repos. Recent work: " + ", ".join([r['name'] for r in profile['recent_repos'][:2]]),
-        "last_activity": profile["last_activity"],
-        "activity_signal": profile["activity_signal"]
+        "company_url": blog if blog.startswith("http") else profile.get("github_url", ""),
+        "github_url": profile.get("github_url", ""),
+        "email": profile.get("email") or "",
+        "tech_stack": profile.get("tech_stack", []),
+        "description": profile.get("bio") or (f"GitHub developer with {profile.get('public_repos', 0)} repos. Recent: {repo_names}" if repo_names else "Active GitHub developer"),
+        "last_activity": profile.get("last_activity", ""),
+        "activity_signal": profile.get("activity_signal", ""),
+        "company_size": "unknown",
     }
