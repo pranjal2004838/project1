@@ -1,7 +1,7 @@
 import json
 from scrapers.hyderabad.github_hyd_scraper import search_hyderabad_github_users, format_github_user_as_startup
 from scrapers.hyderabad.thub_scraper import scrape_thub_portfolio
-from ai.hyderabad_scorer import score_hyderabad_startup
+from ai.hyderabad_scorer import score_hyderabad_startup, generate_hyderabad_email
 from database.db_client import DatabaseClient
 import time
 
@@ -63,6 +63,12 @@ def run_hyderabad_scan(db: DatabaseClient):
             
             if startup["pass"]:
                 items_passed += 1
+                
+            # Automatically generate email
+            print(f"[*] Generating email for startup: {startup.get('company_name')}...")
+            email_data = generate_hyderabad_email(scoring_data)
+            startup["generated_subject"] = email_data.get("subject", "")
+            startup["generated_message"] = email_data.get("message", "")
                 
             # Convert tech_stack to JSON string for DB
             if "tech_stack" in startup and isinstance(startup["tech_stack"], list):

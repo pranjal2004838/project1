@@ -20,7 +20,7 @@ def render_cold_email_tab(db):
         status_filter = f_col1.multiselect(
             "Status", ["new", "sent", "replied", "interested", "closed"], default=["new"]
         )
-        min_score = f_col2.slider("Min Score (Founders)", 0, 100, 75)
+        min_score = 0 # Forced to 0 to show all
 
     # Fetch from DB
     try:
@@ -29,7 +29,7 @@ def render_cold_email_tab(db):
         if status_filter:
             query += f" AND status IN ({','.join(['?' for _ in status_filter])})"
             params.extend(status_filter)
-        query += " ORDER BY score DESC LIMIT 50"
+        query += " ORDER BY score DESC LIMIT 100"
         
         targets = db.execute_query(query, params)
         targets = [dict(row) for row in targets]
@@ -60,7 +60,16 @@ def render_cold_email_card(target: dict, db):
 
         with col2:
             score = target.get('score', 0)
-            st.metric("Score", f"{score}")
+            if score >= 85:
+                classification = "Definitely Best Opportunity"
+            elif score >= 70:
+                classification = "Good Fit"
+            elif score >= 50:
+                classification = "Maybe"
+            else:
+                classification = "Waste of Time"
+                
+            st.metric("Classification", classification, delta=f"Score: {score}", delta_color="off")
 
             status_options = ["new", "sent", "replied", "interested", "closed"]
             current_status = target.get('status', 'new')

@@ -39,7 +39,7 @@ def render_hyderabad_tab(db):
     # Filters
     st.divider()
     with st.expander("🔽 Filters", expanded=True):
-        f_col1, f_col2, f_col3, f_col4 = st.columns(4)
+        f_col1, f_col2, f_col3 = st.columns(3)
         source_filter = f_col1.multiselect(
             "Source", ["thub", "github", "yourstory", "inc42", "product_hunt", "domain"], default=[]
         )
@@ -49,7 +49,7 @@ def render_hyderabad_tab(db):
         status_filter = f_col3.multiselect(
             "Status", ["new", "drafted", "sent", "replied", "interested", "closed"], default=["new", "drafted"]
         )
-        min_score = f_col4.slider("Min Score", 0, 100, 75)
+        min_score = 0 # Forced to 0 to show all
 
     # Startup cards
     startups = db.get_hyderabad_startups(
@@ -110,14 +110,18 @@ def render_hyderabad_card(startup: dict, db):
                 st.success(f"✅ {startup['fit_reason']}")
 
         with col2:
-            # Score badge
+            # Score badge & Classification
             score = startup.get('score', 0)
             if score >= 85:
-                st.metric("Score", f"{score}", delta="Strong Fit")
-            elif score >= 75:
-                st.metric("Score", f"{score}", delta="Good Fit")
+                classification = "Definitely Best Opportunity"
+            elif score >= 70:
+                classification = "Good Fit"
+            elif score >= 50:
+                classification = "Maybe"
             else:
-                st.metric("Score", f"{score}")
+                classification = "Waste of Time"
+                
+            st.metric("Classification", classification, delta=f"Score: {score}", delta_color="off")
 
             # Status dropdown
             status_options = ["new", "drafted", "sent", "replied", "interested", "closed"]

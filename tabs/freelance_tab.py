@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+from utils.freelance_scan_runner import run_freelance_scan
 
 def render_freelance_tab(db):
     st.header("💼 Freelance Leads")
@@ -10,29 +11,30 @@ def render_freelance_tab(db):
     col_scan, col_status = st.columns([2, 3])
     with col_scan:
         if st.button("🔍 Run Freelance Scan", type="primary"):
-            st.info("Scan started in background...")
-            # Note: actual scan logic would be imported and called here
+            with st.spinner("Scanning Reddit and scoring with Gemini..."):
+                found, passed = run_freelance_scan(db)
+                st.success(f"Scan complete! Found {found} leads, {passed} passed the filter.")
+            st.rerun()
         
         st.caption("Sources: Reddit · HackerNews · IndieHackers")
 
     # Filters
     st.divider()
     with st.expander("🔽 Filters", expanded=True):
-        f_col1, f_col2, f_col3 = st.columns(3)
+        f_col1, f_col2 = st.columns(2)
         status_filter = f_col1.multiselect(
             "Status", ["new", "contacted", "replied", "closed"], default=["new"]
         )
-        min_score = f_col2.slider("Min Score (Freelance)", 0, 100, 72)
+        min_score = 0 # Forced to 0 to show all leads
 
-    # Fetch from DB (assuming db_client has a get_leads method)
-    # Since we haven't implemented get_leads yet, we'll add a placeholder or simple query
+    # Fetch from DB
     try:
         query = "SELECT * FROM leads WHERE score >= ?"
         params = [min_score]
         if status_filter:
             query += f" AND status IN ({','.join(['?' for _ in status_filter])})"
             params.extend(status_filter)
-        query += " ORDER BY score DESC LIMIT 50"
+        query += " ORDER BY score DESC LIMIT 100"
         
         leads = db.execute_query(query, params)
         leads = [dict(row) for row in leads]
@@ -68,9 +70,18 @@ def render_freelance_card(lead: dict, db):
                 st.write(lead['body'][:300] + "...")
 
         with col2:
-            # Score badge
+            # Score badge & Classification
             score = lead.get('score', 0)
-            st.metric("Score", f"{score}", delta=lead.get('urgency', 'medium'))
+            if score >= 85:
+                classification = "Definitely Best Opportunity"
+            elif score >= 70:
+                classification = "Good Fit"
+            elif score >= 50:
+                classification = "Maybe"
+            else:
+                classification = "Waste of Time"
+                
+            st.metric("Classification", classification, delta=f"Score: {score}", delta_color="off")
 
             # Status dropdown
             status_options = ["new", "contacted", "replied", "closed"]

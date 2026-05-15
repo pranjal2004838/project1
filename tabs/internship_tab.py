@@ -16,11 +16,11 @@ def render_internship_tab(db):
     # Filters
     st.divider()
     with st.expander("🔽 Filters", expanded=True):
-        f_col1, f_col2, f_col3 = st.columns(3)
+        f_col1, f_col2 = st.columns(2)
         status_filter = f_col1.multiselect(
             "Status", ["new", "sent", "replied", "closed"], default=["new"]
         )
-        min_score = f_col2.slider("Min Score (Internship)", 0, 100, 78)
+        min_score = 0 # Forced to 0 to show all
 
     # Fetch from DB
     try:
@@ -29,7 +29,7 @@ def render_internship_tab(db):
         if status_filter:
             query += f" AND status IN ({','.join(['?' for _ in status_filter])})"
             params.extend(status_filter)
-        query += " ORDER BY score DESC LIMIT 50"
+        query += " ORDER BY score DESC LIMIT 100"
         
         opps = db.execute_query(query, params)
         opps = [dict(row) for row in opps]
@@ -61,7 +61,16 @@ def render_internship_card(opp: dict, db):
 
         with col2:
             score = opp.get('score', 0)
-            st.metric("Score", f"{score}")
+            if score >= 85:
+                classification = "Definitely Best Opportunity"
+            elif score >= 70:
+                classification = "Good Fit"
+            elif score >= 50:
+                classification = "Maybe"
+            else:
+                classification = "Waste of Time"
+                
+            st.metric("Classification", classification, delta=f"Score: {score}", delta_color="off")
 
             status_options = ["new", "sent", "replied", "closed"]
             current_status = opp.get('status', 'new')
