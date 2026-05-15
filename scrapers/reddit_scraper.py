@@ -1,63 +1,65 @@
 import requests
 import time
+import os
 from datetime import datetime
 
 SUBREDDITS = [
     "entrepreneur", "smallbusiness", "startups", "forhire", 
-    "webdev", "flutterdev", "nocode", "SaaS", "indiehackers"
+    "webdev", "flutterdev", "nocode", "SaaS"
 ]
 
-def scrape_reddit_leads(max_age_hours=48):
+KEYWORDS = [
+    'hire', 'hiring', 'looking for', 'need', 'developer', 
+    'freelance', 'build', 'app', 'website', 'react', 'flutter',
+    'wordpress', 'wix', 'help with', 'anyone know'
+]
+
+def scrape_reddit_leads(max_age_hours=72):
     """
     Scrapes relevant subreddits for potential freelance leads using Reddit's public JSON API.
     """
     print("[*] Scraping Reddit for freelance leads...")
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+        "User-Agent": "outreach-bot/0.1 (research tool)"
     }
     
     leads = []
     current_time = time.time()
     
     for sub in SUBREDDITS:
-        url = f"https://www.reddit.com/r/{sub}/new.json?limit=25"
+        url = f"https://www.reddit.com/r/{sub}/new.json?limit=50"
         try:
-            response = requests.get(url, headers=headers, timeout=10)
+            response = requests.get(url, headers=headers, timeout=15)
             if response.status_code == 429:
                 print(f"[!] Reddit Rate Limited. Skipping r/{sub}")
-                time.sleep(5)
+                time.sleep(10)
                 continue
-            response.raise_for_status()
-            
+            if response.status_code != 200:
+                print(f"[!] Reddit returned {response.status_code} for r/{sub}. Skipping.")
+                continue
+
             data = response.json()
             posts = data.get('data', {}).get('children', [])
             
             for post in posts:
                 post_data = post.get('data', {})
-                created_utc = post_data.get('created_utc', 0)
                 
-                # Filter by age
-                age_hours = (current_time - created_utc) / 3600
-                if age_hours > max_age_hours:
-                    continue
-                    
-                # Skip stickied posts and self-promo (basic filter)
-                if post_data.get('stickied') or post_data.get('author') == 'AutoModerator':
+                # Skip stickied posts and automoderator
+                if post_data.get('stickied') or post_data.get('author') in ['AutoModerator', '[deleted]']:
                     continue
                 
                 title = post_data.get('title', '')
                 body = post_data.get('selftext', '')
                 
-                # Very basic keyword pre-filter to save Gemini tokens
+                # Basic keyword filter
                 combined = (title + " " + body).lower()
-                keywords = ['hire', 'hiring', 'looking for', 'need', 'developer', 'freelance', 'build', 'app', 'website', 'wix', 'react', 'flutter']
-                
-                if any(kw in combined for kw in keywords):
+                if any(kw in combined for kw in KEYWORDS):
+                    created_utc = post_data.get('created_utc', 0)
                     leads.append({
                         "platform": "reddit",
                         "channel": f"r/{sub}",
                         "title": title,
-                        "body": body[:1000], # Truncate long bodies
+                        "body": body[:1000],
                         "url": f"https://www.reddit.com{post_data.get('permalink', '')}",
                         "author": post_data.get('author', ''),
                         "posted_at": datetime.fromtimestamp(created_utc).isoformat()
@@ -66,6 +68,7 @@ def scrape_reddit_leads(max_age_hours=48):
         except Exception as e:
             print(f"[!] Error scraping r/{sub}: {e}")
             
-        time.sleep(2) # Respectful delay between subreddits
+        time.sleep(2)  # Respectful delay
         
+    print(f"[*] Reddit scraped. Found {len(leads)} potential leads.")
     return leads

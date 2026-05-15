@@ -21,13 +21,13 @@ def search_hyderabad_github_users():
     
     # Query: users in hyderabad with followers > 5, sorted by joined date
     # (Matches the plan's suggested query)
-    query = "location:hyderabad followers:>5"
+    query = "location:hyderabad followers:>1"
     users = g.search_users(query, sort="joined", order="desc")
     
     results = []
-    # Limit to first 30 users for the scan to stay within rate limits and time
+    # Limit to first 40 users for the scan
     for i, user in enumerate(users):
-        if i >= 30:
+        if i >= 40:
             break
             
         try:
@@ -43,8 +43,8 @@ def search_hyderabad_github_users():
                 "github_url": f"https://github.com/{user.login}"
             }
             
-            # Skip if no repos or no company/blog (less likely to be a founder/startup)
-            if profile["public_repos"] < 3 or not (profile["company"] or profile["blog"]):
+            # Skip if no repos
+            if profile["public_repos"] < 1:
                 continue
                 
             # Check recent repos
@@ -73,9 +73,8 @@ def search_hyderabad_github_users():
                     "updated_at": updated_at.isoformat()
                 })
             
-            # Final check: Must have been active recently (last 60 days)
-            # and have some tech stack
-            if last_activity and (time.time() - last_activity.timestamp() < 60 * 24 * 3600):
+            # Include all users with at least some activity
+            if last_activity:
                 profile["tech_stack"] = list(tech_stack)
                 profile["last_activity"] = last_activity.isoformat()
                 profile["activity_signal"] = f"GitHub activity on {last_activity.strftime('%Y-%m-%d')}"
