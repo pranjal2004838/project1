@@ -11,23 +11,25 @@ st.set_page_config(
     page_icon="🎯"
 )
 
-# Database client (cached singleton)
-@st.cache_resource
-def get_db():
-    from database.db_client import DatabaseClient
-    return DatabaseClient()
-
-db = get_db()
+# Session state init — stores all scan results IN MEMORY (persists across reruns in same session)
+defaults = {
+    'scan_running': False,
+    'freelance_leads': [],
+    'internship_opps': [],
+    'cold_email_targets': [],
+    'hyderabad_startups': [],
+    'last_scan_freelance': None,
+    'last_scan_internship': None,
+    'last_scan_cold': None,
+    'last_scan_hyderabad': None,
+}
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
 # Header
 st.title("🎯 Pranjal's AI Outreach Engine")
 st.caption("Zero noise. Only leads that pass Gemini's filter.")
-
-# Session state init
-if 'scan_running' not in st.session_state:
-    st.session_state.scan_running = False
-if 'last_scan_hyderabad' not in st.session_state:
-    st.session_state.last_scan_hyderabad = None
 
 # Four tabs
 tab1, tab2, tab3, tab4 = st.tabs([
@@ -39,16 +41,16 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     from tabs.freelance_tab import render_freelance_tab
-    render_freelance_tab(db)
+    render_freelance_tab()
 
 with tab2:
     from tabs.internship_tab import render_internship_tab
-    render_internship_tab(db)
+    render_internship_tab()
 
 with tab3:
     from tabs.cold_email_tab import render_cold_email_tab
-    render_cold_email_tab(db)
+    render_cold_email_tab()
 
 with tab4:
     from tabs.hyderabad_tab import render_hyderabad_tab
-    render_hyderabad_tab(db)
+    render_hyderabad_tab()

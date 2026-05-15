@@ -1,185 +1,180 @@
 import streamlit as st
-from datetime import datetime
-from utils.scan_runner import run_hyderabad_scan
-from ai.hyderabad_scorer import generate_hyderabad_email
+import json
+import time
+from scrapers.hyderabad.github_hyd_scraper import search_hyderabad_github_users, format_github_user_as_startup
+from scrapers.hyderabad.thub_scraper import scrape_thub_portfolio
+from ai.hyderabad_scorer import score_hyderabad_startup, generate_hyderabad_email
 
-def render_hyderabad_tab(db):
+def get_classification(score):
+    if score >= 85: return "🏆 Definitely Best Opportunity"
+    elif score >= 70: return "✅ Good Fit"
+    elif score >= 50: return "🤔 Maybe"
+    else: return "❌ Waste of Time"
+
+def run_hyderabad_scan():
+    """Runs the scan and stores results in session_state."""
+    all_results = []
+    
+    progress = st.progress(0, text="Searching GitHub for Hyderabad founders...")
+    github_users = search_hyderabad_github_users()
+    for user in github_users:
+        all_results.append(format_github_user_as_startup(user))
+    
+    progress.progress(0.3, text="Scraping T-Hub portfolio...")
+    thub_startups = scrape_thub_portfolio()
+    all_results.extend(thub_startups)
+    
+    results = []
+    total = len(all_results)
+    
+    for i, startup in enumerate(all_results):
+        try:
+            progress.progress(0.3 + 0.7 * (i + 1) / max(total, 1), text=f"Scoring startup {i+1}/{total} with Gemini...")
+            
+            scoring_data = {
+                "company_name": startup.get("company_name", "Unknown"),
+                "source": startup.get("source", "unknown"),
+                "description": startup.get("description", ""),
+                "tech_stack": json.dumps(startup.get("tech_stack", [])),
+                "company_size": startup.get("company_size", "unknown"),
+                "last_activity": startup.get("last_activity", "unknown"),
+                "company_url": startup.get("company_url", ""),
+                "github_url": startup.get("github_url", ""),
+                "fit_reason": "",  # placeholder for email template
+                "urgency_signal": "",
+            }
+            
+            analysis = score_hyderabad_startup(scoring_data)
+            startup.update({
+                "score": analysis.get("score", 0),
+                "fit_reason": analysis.get("fit_reason", ""),
+                "stack_overlap": analysis.get("stack_overlap", []),
+                "urgency_signal": analysis.get("urgency_signal", ""),
+                "disqualify_reason": analysis.get("disqualify_reason"),
+            })
+            
+            # Auto-generate email — always, regardless of score
+            scoring_data["fit_reason"] = startup["fit_reason"]
+            scoring_data["urgency_signal"] = startup["urgency_signal"]
+            email_data = generate_hyderabad_email(scoring_data)
+            startup["generated_subject"] = email_data.get("subject", "")
+            startup["generated_message"] = email_data.get("message", "")
+            
+            results.append(startup)
+            if i < total - 1:
+                time.sleep(4.1)
+        except Exception as e:
+            st.warning(f"Skipped one startup: {e}")
+    
+    progress.empty()
+    st.session_state.hyderabad_startups = results
+    st.session_state.last_scan_hyderabad = f"Found {len(results)} startups"
+
+
+def render_hyderabad_tab():
     st.header("🏙️ Hyderabad Stealth Startup Hunter")
-    st.caption(
-        "Finds startups NOT on Internshala, LinkedIn, or Naukri. "
-        "Sources: T-Hub directory, GitHub Hyderabad users, YourStory, Inc42, Product Hunt, domain scraping."
-    )
+    st.caption("Finds startups NOT on Internshala, LinkedIn, or Naukri. Sources: T-Hub, GitHub Hyderabad.")
 
     # Stats row
+    startups = st.session_state.hyderabad_startups
     col1, col2, col3, col4 = st.columns(4)
-    stats = db.get_hyderabad_stats()
-    col1.metric("Total Discovered", stats['total'])
-    col2.metric("Passed Filter", stats['passed'])
-    col3.metric("Emails Drafted", stats['drafted'])
-    col4.metric("Replies Received", stats['replied'])
+    col1.metric("Total Found", len(startups))
+    col2.metric("High Opportunity (≥70)", sum(1 for s in startups if s.get("score", 0) >= 70))
+    col3.metric("Maybe (50-69)", sum(1 for s in startups if 50 <= s.get("score", 0) < 70))
+    col4.metric("Emails Ready", sum(1 for s in startups if s.get("generated_message")))
 
-    # Scan control
     st.divider()
     col_scan, col_status = st.columns([2, 3])
     with col_scan:
-        if st.button("🔍 Run Hyderabad Scan", disabled=st.session_state.scan_running, type="primary"):
+        if st.button("🔍 Run Hyderabad Scan", type="primary", disabled=st.session_state.scan_running):
             st.session_state.scan_running = True
-            with st.spinner("Scanning Hyderabad sources and scoring with Gemini..."):
-                found, passed = run_hyderabad_scan(db)
-                st.session_state.last_scan_hyderabad = f"{datetime.now().strftime('%Y-%m-%d %H:%M')} ({found} found, {passed} passed)"
+            run_hyderabad_scan()
             st.session_state.scan_running = False
             st.rerun()
-        
-        st.caption("Sources: T-Hub · GitHub · YourStory · Inc42 · Product Hunt")
-
+        st.caption("Sources: T-Hub · GitHub Hyderabad")
     with col_status:
         if st.session_state.last_scan_hyderabad:
             st.info(f"Last scan: {st.session_state.last_scan_hyderabad}")
 
-    # Filters
-    st.divider()
-    with st.expander("🔽 Filters", expanded=True):
-        f_col1, f_col2, f_col3 = st.columns(3)
-        source_filter = f_col1.multiselect(
-            "Source", ["thub", "github", "yourstory", "inc42", "product_hunt", "domain"], default=[]
-        )
-        stack_filter = f_col2.multiselect(
-            "Stack Match", ["React", "Flutter", "Firebase", "Node.js", "Python", "TypeScript"], default=[]
-        )
-        status_filter = f_col3.multiselect(
-            "Status", ["new", "drafted", "sent", "replied", "interested", "closed"], default=["new", "drafted"]
-        )
-        min_score = 0 # Forced to 0 to show all
-
-    # Startup cards
-    startups = db.get_hyderabad_startups(
-        sources=source_filter,
-        statuses=status_filter,
-        min_score=min_score
-    )
-
     if not startups:
-        st.info("No startups match your filters. Run a scan or adjust filters.")
+        st.info("No startups yet. Click **Run Hyderabad Scan** to start.")
         return
 
-    for startup in startups:
-        render_hyderabad_card(startup, db)
+    st.divider()
+    st.subheader(f"📋 {len(startups)} Startups Found — Sorted by Score")
 
-
-def render_hyderabad_card(startup: dict, db):
-    with st.container(border=True):
-        col1, col2 = st.columns([3, 1])
-
-        with col1:
-            # Header
-            source_colors = {
-                'thub': '🏛️', 'github': '⚫', 'yourstory': '📰',
-                'inc42': '📊', 'product_hunt': '🐱', 'domain': '🌐'
-            }
-            icon = source_colors.get(startup['source'], '📍')
-            st.markdown(f"### {icon} {startup['company_name']}")
-
-            if startup.get('founder_name'):
-                st.caption(f"Founder: **{startup['founder_name']}**")
-
-            # Description
-            if startup.get('description'):
-                desc = startup['description']
-                st.write(desc[:200] + ('...' if len(desc) > 200 else ''))
-
-            # Stack tags
-            if startup.get('tech_stack'):
-                import json
-                try:
-                    stack = json.loads(startup['tech_stack']) if isinstance(startup['tech_stack'], str) else startup['tech_stack']
-                except:
-                    stack = []
-                pranjal_stack = {'React', 'Flutter', 'Firebase', 'Node.js', 'TypeScript', 'Supabase', 'MongoDB'}
-                tags = " ".join([
-                    f"**`{s}`**" if s in pranjal_stack else f"`{s}`"
-                    for s in stack[:8]
-                ])
-                st.markdown(f"Stack: {tags}")
-
-            # Activity signal
-            if startup.get('activity_signal'):
-                st.caption(f"⏱️ {startup['activity_signal']}")
-
-            # Fit reason
-            if startup.get('fit_reason'):
-                st.success(f"**AI Opinion:** {startup['fit_reason']}")
-
-        with col2:
-            # Score badge & Classification
-            score = startup.get('score', 0)
-            if score >= 85:
-                classification = "Definitely Best Opportunity"
-            elif score >= 70:
-                classification = "Good Fit"
-            elif score >= 50:
-                classification = "Maybe"
-            else:
-                classification = "Waste of Time"
+    for i, startup in enumerate(sorted(startups, key=lambda x: x.get('score', 0), reverse=True)):
+        score = startup.get('score', 0)
+        classification = get_classification(score)
+        
+        with st.container(border=True):
+            col1, col2 = st.columns([3, 1])
+            
+            with col1:
+                source_icons = {'thub': '🏛️', 'github': '⚫'}
+                icon = source_icons.get(startup.get('source', ''), '📍')
+                st.markdown(f"### {icon} {startup.get('company_name', 'Unknown Startup')}")
                 
-            st.metric("Classification", classification, delta=f"Score: {score}", delta_color="off")
-
-            # Status dropdown
-            status_options = ["new", "drafted", "sent", "replied", "interested", "closed"]
-            current_status = startup.get('status', 'new')
-            if current_status not in status_options:
-                current_status = 'new'
+                if startup.get('founder_name'):
+                    st.caption(f"Founder: **{startup['founder_name']}**")
                 
-            new_status = st.selectbox(
-                "Status",
-                status_options,
-                index=status_options.index(current_status),
-                key=f"status_{startup['id']}"
-            )
-            if new_status != startup.get('status'):
-                db.update_hyderabad_status(startup['id'], new_status)
-                st.rerun()
-
-        # Links row
-        link_col1, link_col2, link_col3 = st.columns(3)
-        if startup.get('company_url'):
-            link_col1.markdown(f"[🌐 Website]({startup['company_url']})")
-        if startup.get('github_url'):
-            link_col2.markdown(f"[⚫ GitHub]({startup['github_url']})")
-        if startup.get('email'):
-            link_col3.markdown(f"📧 `{startup['email']}`")
-
-        # Email section
-        with st.expander("📧 View / Generate Email"):
+                if startup.get('description'):
+                    st.write(startup['description'][:250] + "...")
+                
+                # Stack tags
+                stack = startup.get('tech_stack', [])
+                if isinstance(stack, str):
+                    try: stack = json.loads(stack)
+                    except: stack = []
+                if stack:
+                    pranjal_stack = {'React', 'Flutter', 'Firebase', 'Node.js', 'TypeScript', 'Supabase', 'MongoDB', 'JavaScript'}
+                    tags = " · ".join([f"**{s}**" if s in pranjal_stack else s for s in stack[:6]])
+                    st.caption(f"Stack: {tags}")
+                
+                if startup.get('activity_signal'):
+                    st.caption(f"⏱️ {startup['activity_signal']}")
+                
+                if startup.get('fit_reason'):
+                    st.success(f"**AI Opinion:** {startup['fit_reason']}")
+                    
+                if startup.get('disqualify_reason'):
+                    st.warning(f"⚠️ Note: {startup['disqualify_reason']}")
+            
+            with col2:
+                st.metric("Score", score)
+                st.markdown(f"**{classification}**")
+                if startup.get('stack_overlap'):
+                    overlap = startup['stack_overlap']
+                    if isinstance(overlap, list):
+                        st.caption("Overlap: " + ", ".join(overlap[:3]))
+            
+            # Links
+            link_cols = st.columns(3)
+            if startup.get('company_url'):
+                link_cols[0].markdown(f"[🌐 Website]({startup['company_url']})")
+            if startup.get('github_url'):
+                link_cols[1].markdown(f"[⚫ GitHub]({startup['github_url']})")
+            
+            # Email section
             if startup.get('generated_message'):
-                st.text_input("Subject", value=startup.get('generated_subject', ''), key=f"subj_{startup['id']}")
-                edited_msg = st.text_area(
-                    "Email Body",
-                    value=startup['generated_message'],
-                    height=200,
-                    key=f"msg_{startup['id']}"
-                )
-                col_copy, col_regen = st.columns(2)
-                if col_copy.button("📋 Copy Email", key=f"copy_{startup['id']}"):
-                    st.code(f"Subject: {startup.get('generated_subject','')}\n\n{edited_msg}")
-                    st.toast("Copied! Paste into your email client.")
-                if col_regen.button("🔄 Regenerate", key=f"regen_{startup['id']}"):
-                    with st.spinner("Regenerating with Gemini..."):
-                        email_data = generate_hyderabad_email(startup)
-                        db.save_hyderabad_email(startup['id'], email_data.get('subject', ''), email_data.get('message', ''))
-                    st.rerun()
+                with st.expander("📧 View Generated Email"):
+                    st.text_input("Subject", value=startup.get('generated_subject', ''), key=f"hyd_subj_{i}")
+                    st.text_area("Email Body", value=startup['generated_message'], height=200, key=f"hyd_msg_{i}")
+                    if st.button("📋 Copy", key=f"hyd_copy_{i}"):
+                        st.code(f"Subject: {startup.get('generated_subject','')}\n\n{startup['generated_message']}")
             else:
-                if st.button("✨ Generate Email Now", key=f"gen_{startup['id']}"):
+                if st.button("✨ Generate Email Now", key=f"hyd_gen_{i}"):
                     with st.spinner("Generating with Gemini..."):
-                        email_data = generate_hyderabad_email(startup)
-                        db.save_hyderabad_email(startup['id'], email_data.get('subject', ''), email_data.get('message', ''))
+                        scoring_data = {
+                            "company_name": startup.get("company_name", ""),
+                            "description": startup.get("description", ""),
+                            "tech_stack": json.dumps(startup.get("tech_stack", [])),
+                            "fit_reason": startup.get("fit_reason", ""),
+                            "urgency_signal": startup.get("urgency_signal", ""),
+                            "company_url": startup.get("company_url", ""),
+                            "github_url": startup.get("github_url", ""),
+                        }
+                        email_data = generate_hyderabad_email(scoring_data)
+                        st.session_state.hyderabad_startups[i]["generated_subject"] = email_data.get("subject", "")
+                        st.session_state.hyderabad_startups[i]["generated_message"] = email_data.get("message", "")
                     st.rerun()
-
-        # Notes field
-        notes = st.text_input(
-            "Your notes (visible only to you)",
-            value=startup.get('notes', ''),
-            key=f"notes_{startup['id']}",
-            placeholder="e.g. Met founder at T-Hub event, follow up on Monday"
-        )
-        if notes != startup.get('notes', ''):
-            db.update_hyderabad_notes(startup['id'], notes)

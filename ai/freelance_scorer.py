@@ -18,10 +18,11 @@ Return ONLY a JSON object:
 {{
   "score": <0-100>,
   "service_match": "<which of Pranjal's services fits this best, or null>",
+  "fit_reason": "<AI Opinion: 1-2 sentences. Is this worth Pranjal's time? Why or why not?>",
   "urgency": "<high | medium | low>",
   "pain_point": "<one short sentence describing their main problem>",
   "disqualify_reason": "<null or: 'too low budget', 'wrong stack/platform', 'full-time job', 'just chatting/no intent'>",
-  "pass": <true if score >= 72 AND disqualify_reason is null>
+  "pass": <true if score >= 50>
 }}
 
 Scoring rules:
