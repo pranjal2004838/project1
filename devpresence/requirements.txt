@@ -1,0 +1,15 @@
+google-generativeai
+ddgs
+praw
+discord.py
+slack-sdk
+apscheduler
+sqlalchemy
+streamlit
+pandas
+python-dotenv
+httpx
+requests
+beautifulsoup4
+playwright
+rich
