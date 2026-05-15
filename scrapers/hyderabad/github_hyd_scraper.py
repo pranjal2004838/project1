@@ -14,79 +14,66 @@ def search_hyderabad_github_users():
     Returns a list of potential startup founders/early employees.
     """
     if not GITHUB_TOKEN:
-        print("[!] GITHUB_TOKEN not found. Skipping GitHub search.")
         return []
 
     g = Github(GITHUB_TOKEN)
     
-    # Aggressive query for founders and tech leads in Hyderabad
-    query = 'location:hyderabad "founder" OR "cto" OR "ceo" OR "startup"'
-    users = g.search_users(query, sort="joined", order="desc")
+    queries = [
+        'location:Hyderabad "founder"',
+        'location:hyderabad "CTO"',
+        'location:Hyderabad "startup"',
+        'location:Hyderabad "CEO"'
+    ]
     
+    seen_logins = set()
     results = []
-    # Limit to first 40 users for the scan
-    for i, user in enumerate(users):
-        if i >= 40:
-            break
-            
+    
+    for q in queries:
         try:
-            # Basic profile info
-            profile = {
-                "username": user.login,
-                "name": user.name,
-                "company": user.company,
-                "blog": user.blog,
-                "bio": user.bio,
-                "public_repos": user.public_repos,
-                "github_url": f"https://github.com/{user.login}",
-                "public_repos": user.public_repos
-            }
-            
-            # Skip if no repos
-            if profile["public_repos"] < 1:
-                continue
+            users = g.search_users(q)
+            for i, user in enumerate(users):
+                if i >= 10: break 
+                if user.login in seen_logins: continue
+                seen_logins.add(user.login)
                 
-            # Check recent repos
-            repos = user.get_repos(sort="updated", direction="desc")
-            recent_repos = []
-            tech_stack = set()
-            last_activity = None
-            
-            for j, repo in enumerate(repos):
-                if j >= 5: break
-                
-                # Check for activity in last 60 days
-                updated_at = repo.updated_at
-                if not last_activity or updated_at > last_activity:
-                    last_activity = updated_at
-                
-                # Extract languages
-                if repo.language:
-                    tech_stack.add(repo.language)
-                
-                # Store repo info
-                recent_repos.append({
-                    "name": repo.name,
-                    "description": repo.description,
-                    "url": repo.html_url,
-                    "updated_at": updated_at.isoformat()
-                })
-            
-            # Include all users with at least some activity
-            if last_activity:
-                profile["tech_stack"] = list(tech_stack)
-                profile["last_activity"] = last_activity.isoformat()
-                profile["activity_signal"] = f"GitHub activity on {last_activity.strftime('%Y-%m-%d')}"
-                profile["recent_repos"] = recent_repos
-                results.append(profile)
-                
-        except Exception as e:
-            print(f"[!] Error processing GitHub user {user.login}: {e}")
+                try:
+                    profile = {
+                        "username": user.login,
+                        "name": user.name,
+                        "company": user.company,
+                        "blog": user.blog,
+                        "bio": user.bio,
+                        "public_repos": user.public_repos,
+                        "github_url": f"https://github.com/{user.login}"
+                    }
+                    
+                    if profile["public_repos"] < 1:
+                        continue
+                        
+                    repos = user.get_repos(sort="updated", direction="desc")
+                    tech_stack = set()
+                    last_activity = None
+                    recent_repos = []
+                    
+                    for j, repo in enumerate(repos):
+                        if j >= 3: break
+                        if not last_activity or repo.updated_at > last_activity:
+                            last_activity = repo.updated_at
+                        if repo.language:
+                            tech_stack.add(repo.language)
+                        recent_repos.append({"name": repo.name})
+
+                    if last_activity:
+                        profile["tech_stack"] = list(tech_stack)
+                        profile["last_activity"] = last_activity.isoformat()
+                        profile["activity_signal"] = f"GitHub activity on {last_activity.strftime('%Y-%m-%d')}"
+                        profile["recent_repos"] = recent_repos
+                        results.append(profile)
+                except:
+                    continue
+        except:
             continue
             
-        # Respect rate limits
-        time.sleep(1)
-        
     return results
 
 def format_github_user_as_startup(profile):

@@ -17,28 +17,33 @@ def run_hyderabad_scan():
     all_results = []
     
     progress = st.progress(0, text="Searching GitHub for Hyderabad founders...")
-    github_users = search_hyderabad_github_users()
+    try:
+        github_users = search_hyderabad_github_users()
+        github_startups = [format_github_user_as_startup(u) for u in github_users]
+        all_results.extend(github_startups)
+    except Exception as e:
+        st.warning(f"GitHub search failed: {e}")
+
     progress.progress(0.2, text="Hunting for stealth startups via Search...")
-    search_results = search_hyderabad_startups()
+    try:
+        search_results = search_hyderabad_startups()
+        all_results.extend(search_results)
+    except Exception as e:
+        print(f"Smart Search failed: {e}")
     
     progress.progress(0.3, text="Finding Hyderabad founders on LinkedIn...")
-    linkedin_leads = search_linkedin_leads(query_type="hyderabad")
-    
-    # Format LinkedIn results to match startup schema
-    linkedin_startups = []
-    for lead in linkedin_leads:
-        linkedin_startups.append({
-            "company_name": lead['name'],
-            "description": lead['description'],
-            "company_url": lead['url'],
-            "source": "linkedin",
-            "tech_stack": []
-        })
-    
-    # Format GitHub results
-    github_startups = [format_github_user_as_startup(u) for u in github_users]
-    
-    all_results = github_startups + search_results + linkedin_startups
+    try:
+        linkedin_leads = search_linkedin_leads(query_type="hyderabad")
+        for lead in linkedin_leads:
+            all_results.append({
+                "company_name": lead['name'],
+                "description": lead['description'],
+                "company_url": lead['url'],
+                "source": "linkedin",
+                "tech_stack": []
+            })
+    except Exception as e:
+        print(f"LinkedIn search failed: {e}")
     
     results = []
     total = len(all_results)
