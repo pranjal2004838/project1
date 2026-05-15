@@ -7,8 +7,6 @@ from ai.freelance_scorer import score_freelance_lead, generate_freelance_message
 def run_freelance_scan():
     """Runs the scan and stores results in session_state."""
     st.session_state.freelance_leads = []
-    raw_leads = scrape_reddit_leads()
-    results = []
     
     progress = st.progress(0, text="Scraping Reddit and HackerNews...")
     reddit_leads = scrape_reddit_leads()
@@ -17,6 +15,9 @@ def run_freelance_scan():
     linkedin_leads = search_linkedin_leads(query_type="freelance")
     
     raw_leads = reddit_leads + linkedin_leads
+    results = []
+    
+    for i, lead in enumerate(raw_leads):
         try:
             progress.progress((i + 1) / max(len(raw_leads), 1), text=f"Scoring lead {i+1}/{len(raw_leads)} with Gemini...")
             analysis = score_freelance_lead(lead)
