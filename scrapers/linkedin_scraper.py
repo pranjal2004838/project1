@@ -12,14 +12,30 @@ LINKEDIN_POST_PATTERN = re.compile(r'linkedin\.com/posts/[\w\-]+', re.IGNORECASE
 # FREELANCE QUERIES — High-intent buyers posting on LinkedIn
 # =========================================================
 FREELANCE_QUERY_POOL = [
+    # React / Flutter / Node dev
     'site:linkedin.com/posts "looking for a freelance" "react" OR "flutter" OR "node"',
     'site:linkedin.com/posts "need a developer" "freelance" OR "contractor"',
     'site:linkedin.com/posts "hiring freelancer" "web" OR "app" OR "mobile"',
-    'site:linkedin.com/posts "need help" "react" OR "wordpress" OR "wix" "developer"',
-    'site:linkedin.com/posts "looking for someone" "build" "app" OR "website"',
     'site:linkedin.com/posts "need a react developer" OR "need a flutter developer"',
     'site:linkedin.com/posts "contract developer" "remote" "react" OR "node"',
     'site:linkedin.com/posts "short term" "developer" "project" "budget"',
+    # Wix
+    'site:linkedin.com/posts "wix developer" "help" OR "hire" OR "freelance"',
+    'site:linkedin.com/posts "need help" "wix" OR "wix studio" "website"',
+    'site:linkedin.com/posts "wix" "looking for" "developer" OR "expert"',
+    # WordPress
+    'site:linkedin.com/posts "wordpress developer" "freelance" OR "hire" OR "need"',
+    'site:linkedin.com/posts "need help" "wordpress" "website" OR "plugin"',
+    # Zapier / Make / n8n automation
+    'site:linkedin.com/posts "zapier" "automation" "need help" OR "looking for"',
+    'site:linkedin.com/posts "make.com" OR "integromat" "automation" "help" OR "hire"',
+    'site:linkedin.com/posts "n8n" OR "n8n.io" "workflow" "developer" OR "help"',
+    'site:linkedin.com/posts "business automation" "zapier" OR "make" "looking for"',
+    'site:linkedin.com/posts "workflow automation" "hire" OR "freelance" OR "need"',
+    'site:linkedin.com/posts "automate" "crm" OR "airtable" OR "notion" "developer"',
+    # App dev
+    'site:linkedin.com/posts "mobile app" "flutter" OR "react native" "freelance"',
+    'site:linkedin.com/posts "build me an app" OR "need an app built" "developer"',
 ]
 
 # =========================================================
@@ -46,6 +62,9 @@ INTERNSHIP_QUERY_POOL = [
     'site:linkedin.com/posts "react intern" OR "flutter intern" OR "node intern"',
     'site:linkedin.com/posts "internship" "react" OR "full stack" "startup" "paid"',
     'site:linkedin.com/posts "unpaid" OR "stipend" "developer intern" "startup"',
+    'site:linkedin.com/posts "automation intern" OR "no-code intern" "startup"',
+    'site:linkedin.com/posts "zapier" OR "make.com" "intern" OR "freelance" "startup"',
+    'site:linkedin.com/posts "wix developer" OR "wordpress developer" "intern" OR "part-time"',
 ]
 
 # =========================================================
