@@ -15,8 +15,8 @@ def get_classification(score):
 def run_hyderabad_scan():
     """Runs the scan and stores results in session_state."""
     all_results = []
-    
-    progress = st.progress(0, text="Searching GitHub for Hyderabad founders...")
+
+    progress = st.progress(0, text="Searching GitHub for Hyderabad + Bangalore founders...")
     try:
         github_users = search_hyderabad_github_users()
         github_startups = [format_github_user_as_startup(u) for u in github_users]
@@ -24,34 +24,36 @@ def run_hyderabad_scan():
     except Exception as e:
         st.warning(f"GitHub search failed: {e}")
 
-    progress.progress(0.2, text="Hunting for stealth startups via Search...")
+    progress.progress(0.2, text="Hunting stealth startups via web search...")
     try:
         search_results = search_hyderabad_startups()
         all_results.extend(search_results)
     except Exception as e:
         print(f"Smart Search failed: {e}")
-    
-    progress.progress(0.3, text="Finding Hyderabad founders on LinkedIn...")
+
+    progress.progress(0.35, text="Finding Hyderabad + Bangalore founders on LinkedIn...")
     try:
         linkedin_leads = search_linkedin_leads(query_type="hyderabad")
         for lead in linkedin_leads:
             all_results.append({
                 "company_name": lead['name'],
                 "description": lead['description'],
-                "company_url": lead['url'],
+                "company_url": lead.get('linkedin_url', lead['url']),
+                "linkedin_url": lead.get('linkedin_url', lead['url']),
                 "source": "linkedin",
-                "tech_stack": []
+                "tech_stack": [],
+                "city": "Hyderabad/Bangalore",
             })
     except Exception as e:
         print(f"LinkedIn search failed: {e}")
-    
+
     results = []
     total = len(all_results)
-    
+
     for i, startup in enumerate(all_results):
         try:
-            progress.progress(0.3 + 0.7 * (i + 1) / max(total, 1), text=f"Scoring startup {i+1}/{total} with Gemini...")
-            
+            progress.progress(0.35 + 0.65 * (i + 1) / max(total, 1), text=f"Scoring startup {i+1}/{total}...")
+
             scoring_data = {
                 "company_name": startup.get("company_name", "Unknown"),
                 "source": startup.get("source", "unknown"),
@@ -61,10 +63,10 @@ def run_hyderabad_scan():
                 "last_activity": startup.get("last_activity", "unknown"),
                 "company_url": startup.get("company_url", ""),
                 "github_url": startup.get("github_url", ""),
-                "fit_reason": "",  # placeholder for email template
+                "fit_reason": "",
                 "urgency_signal": "",
             }
-            
+
             analysis = score_hyderabad_startup(scoring_data)
             startup.update({
                 "score": analysis.get("score", 0),
@@ -73,28 +75,28 @@ def run_hyderabad_scan():
                 "urgency_signal": analysis.get("urgency_signal", ""),
                 "disqualify_reason": analysis.get("disqualify_reason"),
             })
-            
-            # Auto-generate email — always, regardless of score
+
+            # Always generate email
             scoring_data["fit_reason"] = startup["fit_reason"]
             scoring_data["urgency_signal"] = startup["urgency_signal"]
             email_data = generate_hyderabad_email(scoring_data)
             startup["generated_subject"] = email_data.get("subject", "")
             startup["generated_message"] = email_data.get("message", "")
-            
+
             results.append(startup)
             if i < total - 1:
                 time.sleep(4.1)
         except Exception as e:
             st.warning(f"Skipped one startup: {e}")
-    
+
     progress.empty()
     st.session_state.hyderabad_startups = results
     st.session_state.last_scan_hyderabad = f"Found {len(results)} startups"
 
 
 def render_hyderabad_tab():
-    st.header("🏙️ Hyderabad Stealth Startup Hunter")
-    st.caption("Finds startups NOT on Internshala, LinkedIn, or Naukri. Sources: T-Hub, GitHub Hyderabad.")
+    st.header("🏙️ Hyderabad + Bangalore Startup Hunter")
+    st.caption("Finds startups NOT on Internshala, LinkedIn job boards, or Naukri. Sources: GitHub, Smart Search, LinkedIn profiles.")
 
     # Stats row
     startups = st.session_state.hyderabad_startups
@@ -107,18 +109,18 @@ def render_hyderabad_tab():
     st.divider()
     col_scan, col_status = st.columns([2, 3])
     with col_scan:
-        if st.button("🔍 Run Hyderabad Scan", type="primary", disabled=st.session_state.scan_running):
+        if st.button("🔍 Run Hyderabad + Bangalore Scan", type="primary", disabled=st.session_state.scan_running):
             st.session_state.scan_running = True
             run_hyderabad_scan()
             st.session_state.scan_running = False
             st.rerun()
-        st.caption("Sources: GitHub · LinkedIn · Smart Search")
+        st.caption("Sources: GitHub (Hyd+Blr) · LinkedIn Profiles · Web Search")
     with col_status:
         if st.session_state.last_scan_hyderabad:
             st.info(f"Last scan: {st.session_state.last_scan_hyderabad}")
 
     if not startups:
-        st.info("No startups yet. Click **Run Hyderabad Scan** to start.")
+        st.info("No startups yet. Click **Run Hyderabad + Bangalore Scan** to start.")
         return
 
     st.divider()
@@ -127,40 +129,44 @@ def render_hyderabad_tab():
     for i, startup in enumerate(sorted(startups, key=lambda x: x.get('score', 0), reverse=True)):
         score = startup.get('score', 0)
         classification = get_classification(score)
-        
+
         with st.container(border=True):
             col1, col2 = st.columns([3, 1])
-            
+
             with col1:
-                source_icons = {'thub': '🏛️', 'github': '⚫', 'search': '🔍'}
+                source_icons = {'thub': '🏛️', 'github': '⚫', 'search': '🔍', 'linkedin': '🔗'}
                 icon = source_icons.get(startup.get('source', ''), '📍')
-                st.markdown(f"### {icon} {startup.get('company_name', 'Unknown Startup')}")
-                
+                city_label = startup.get('city', '')
+                city_tag = f" 📍 {city_label}" if city_label else ""
+                st.markdown(f"### {icon} {startup.get('company_name', 'Unknown Startup')}{city_tag}")
+
                 if startup.get('founder_name'):
                     st.caption(f"Founder: **{startup['founder_name']}**")
-                
+
                 if startup.get('description'):
-                    st.write(startup['description'][:250] + "...")
-                
+                    st.write(startup['description'][:280])
+
                 # Stack tags
                 stack = startup.get('tech_stack', [])
                 if isinstance(stack, str):
-                    try: stack = json.loads(stack)
-                    except: stack = []
+                    try:
+                        stack = json.loads(stack)
+                    except:
+                        stack = []
                 if stack:
-                    pranjal_stack = {'React', 'Flutter', 'Firebase', 'Node.js', 'TypeScript', 'Supabase', 'MongoDB', 'JavaScript'}
+                    pranjal_stack = {'React', 'Flutter', 'Firebase', 'Node.js', 'TypeScript', 'Supabase', 'MongoDB', 'JavaScript', 'Python'}
                     tags = " · ".join([f"**{s}**" if s in pranjal_stack else s for s in stack[:6]])
                     st.caption(f"Stack: {tags}")
-                
+
                 if startup.get('activity_signal'):
                     st.caption(f"⏱️ {startup['activity_signal']}")
-                
+
                 if startup.get('fit_reason'):
                     st.success(f"**AI Opinion:** {startup['fit_reason']}")
-                    
+
                 if startup.get('disqualify_reason'):
                     st.warning(f"⚠️ Note: {startup['disqualify_reason']}")
-            
+
             with col2:
                 st.metric("Score", score)
                 st.markdown(f"**{classification}**")
@@ -168,14 +174,24 @@ def render_hyderabad_tab():
                     overlap = startup['stack_overlap']
                     if isinstance(overlap, list):
                         st.caption("Overlap: " + ", ".join(overlap[:3]))
-            
-            # Links
-            link_cols = st.columns(3)
-            if startup.get('company_url'):
-                link_cols[0].markdown(f"[🌐 Website]({startup['company_url']})")
-            if startup.get('github_url'):
-                link_cols[1].markdown(f"[⚫ GitHub]({startup['github_url']})")
-            
+
+            # Links — show LinkedIn first if available
+            link_cols = st.columns(4)
+            linkedin_url = startup.get('linkedin_url', '')
+            company_url = startup.get('company_url', '')
+            github_url = startup.get('github_url', '')
+
+            if linkedin_url and "linkedin.com" in linkedin_url:
+                link_cols[0].markdown(f"[🔗 LinkedIn]({linkedin_url})")
+            elif company_url:
+                link_cols[0].markdown(f"[🌐 Website]({company_url})")
+
+            if company_url and company_url != linkedin_url and "linkedin.com" not in company_url:
+                link_cols[1].markdown(f"[🌐 Website]({company_url})")
+
+            if github_url:
+                link_cols[2].markdown(f"[⚫ GitHub]({github_url})")
+
             # Email section
             if startup.get('generated_message'):
                 with st.expander("📧 View Generated Email"):
@@ -196,6 +212,10 @@ def render_hyderabad_tab():
                             "github_url": startup.get("github_url", ""),
                         }
                         email_data = generate_hyderabad_email(scoring_data)
-                        st.session_state.hyderabad_startups[i]["generated_subject"] = email_data.get("subject", "")
-                        st.session_state.hyderabad_startups[i]["generated_message"] = email_data.get("message", "")
+                        subject = email_data.get("subject", "")
+                        message = email_data.get("message", "")
+                        if not message:
+                            message = "Email generation failed — check GEMINI_API_KEY in Streamlit Cloud Secrets."
+                        st.session_state.hyderabad_startups[i]["generated_subject"] = subject
+                        st.session_state.hyderabad_startups[i]["generated_message"] = message
                     st.rerun()

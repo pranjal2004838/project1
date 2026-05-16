@@ -10,12 +10,16 @@ def get_classification(score):
     elif score >= 50: return "🤔 Maybe"
     else: return "❌ Waste of Time"
 
+def run_internship_scan():
+    """Runs the scan and stores results in session_state."""
+    results = []
+
     progress = st.progress(0, text="Searching GitHub for small tech teams...")
     github_opps = search_small_orgs_and_founders(query_term="startup")
-    
+
     progress.progress(0.3, text="Searching LinkedIn for internship posts...")
     linkedin_leads = search_linkedin_leads(query_type="internship")
-    
+
     # Format LinkedIn results
     linkedin_opps = []
     for lead in linkedin_leads:
@@ -24,9 +28,12 @@ def get_classification(score):
             "description": lead['description'],
             "url": lead['url'],
             "source": "linkedin",
-            "name": lead['title']
+            "name": lead['title'],
+            "stack": "",
+            "contact_type": "linkedin",
+            "contact_url": lead['url'],
         })
-    
+
     raw_opps = github_opps + linkedin_opps
 
     for i, opp in enumerate(raw_opps):
@@ -49,7 +56,7 @@ def get_classification(score):
                 time.sleep(4.1)
         except Exception as e:
             st.warning(f"Skipped one: {e}")
-            
+
     progress.empty()
     st.session_state.internship_opps = results
     st.session_state.last_scan_internship = f"Found {len(results)} opportunities"
@@ -71,7 +78,7 @@ def render_internship_tab():
             st.info(f"Last scan: {st.session_state.last_scan_internship}")
 
     opps = st.session_state.internship_opps
-    
+
     if not opps:
         st.info("No opportunities yet. Click **Run Internship Scan** to start.")
         return
@@ -82,7 +89,7 @@ def render_internship_tab():
     for i, opp in enumerate(sorted(opps, key=lambda x: x.get('score', 0), reverse=True)):
         score = opp.get('score', 0)
         classification = get_classification(score)
-        
+
         with st.container(border=True):
             col1, col2 = st.columns([4, 1])
             with col1:
@@ -99,10 +106,17 @@ def render_internship_tab():
             with col2:
                 st.metric("Score", score)
                 st.markdown(f"**{classification}**")
-            
+
             st.markdown(f"[🔗 View Company]({opp.get('url', '#')})")
-            
+
             if opp.get('generated_message'):
                 with st.expander("📧 View Generated Email"):
                     st.text_input("Subject", value=opp.get('generated_subject', ''), key=f"int_subj_{i}")
                     st.text_area("Email Body", value=opp['generated_message'], height=150, key=f"int_msg_{i}")
+            else:
+                if st.button("✨ Generate Email Now", key=f"int_gen_{i}"):
+                    with st.spinner("Generating with Gemini..."):
+                        email_data = generate_internship_email(opp)
+                        st.session_state.internship_opps[i]["generated_subject"] = email_data.get("subject", "")
+                        st.session_state.internship_opps[i]["generated_message"] = email_data.get("message", "Generated email unavailable — check Gemini API key")
+                    st.rerun()

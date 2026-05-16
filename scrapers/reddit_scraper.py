@@ -1,125 +1,199 @@
 import requests
 import time
 import re
-from datetime import datetime
+import random
+from datetime import datetime, timedelta
 
 HN_ALGOLIA_URL = "https://hn.algolia.com/api/v1/search"
 
+# High-intent keywords — someone actively LOOKING TO HIRE
 HIRE_KEYWORDS = [
-    'react', 'flutter', 'firebase', 'node', 'nodejs', 'wix', 'wordpress',
-    'api', 'saas', 'mvp', 'mobile app', 'web app', 'booking', 'dashboard',
-    'automation', 'zapier', 'stripe', 'supabase', 'typescript'
+    'hire', 'hiring', 'looking for', 'need a developer', 'need developer',
+    'need help with', 'need someone to', 'build me', 'fix my', 'freelance help',
+    'upwork', 'fiverr', 'contractor', 'contract work', 'pay', 'paid',
+    'budget', 'rate', 'per hour', 'per project',
+    'react developer', 'flutter developer', 'node developer', 'fullstack',
+    'web developer', 'app developer', 'wordpress developer', 'wix developer',
+    'anyone who can', 'can someone help', 'can anyone build',
 ]
+
+# Keywords that indicate it's a full-time job (EXCLUDE these)
+FULLTIME_EXCLUSIONS = [
+    'full-time', 'full time', 'salary', 'equity', 'pto', 'benefits',
+    '40 hours', 'monday to friday', 'office', 'remote only', 'w2', 'h1b',
+    'years of experience required', 'visa', 'relocation',
+]
+
+# Skills Pranjal can offer
+PRANJAL_SKILLS = [
+    'react', 'flutter', 'firebase', 'node', 'nodejs', 'wordpress', 'wix',
+    'api', 'saas', 'mvp', 'mobile app', 'web app', 'booking', 'dashboard',
+    'automation', 'zapier', 'make.com', 'stripe', 'supabase', 'typescript',
+    'crm', 'landing page', 'ecommerce', 'shopify', 'next.js', 'nextjs',
+]
+
+def _is_full_time_job(text: str) -> bool:
+    text_lower = text.lower()
+    return any(kw in text_lower for kw in FULLTIME_EXCLUSIONS)
+
+def _has_hire_intent(title: str, body: str) -> bool:
+    combined = (title + " " + body).lower()
+    return any(kw in combined for kw in HIRE_KEYWORDS)
+
+def _has_skill_match(title: str, body: str) -> bool:
+    combined = (title + " " + body).lower()
+    return any(kw in combined for kw in PRANJAL_SKILLS)
 
 def scrape_reddit_leads(max_age_hours=168):
     """
-    Scrapes HackerNews (Algolia API) and r/forhire for freelance leads.
-    HackerNews is reliable and not rate-limited for cloud servers.
+    Multi-source freelance lead scraper with randomization.
+    Sources: Reddit r/forhire, r/entrepreneur, r/webdev, HackerNews freelancer thread.
+    Results rotate every scan using random time offsets and subreddit ordering.
     """
     leads = []
-    
-    # ---- Source 1: Hacker News "who wants to hire a freelancer" posts ----
-    try:
-        print("[*] Scraping HackerNews for freelance leads...")
-        
-        # Search for recent posts mentioning our skills
-        for keyword in ['react developer', 'flutter developer', 'node developer', 'wix developer']:
-            params = {
-                "query": keyword,
-                "tags": "story",
-                "numericFilters": f"created_at_i>{int(time.time()) - 30*24*3600}",
-                "hitsPerPage": 20
-            }
-            resp = requests.get(HN_ALGOLIA_URL, params=params, timeout=10)
-            if resp.status_code == 200:
-                for hit in resp.json().get("hits", []):
-                    title = hit.get("title", "")
-                    if any(kw in title.lower() for kw in ["hiring", "hire", "looking for", "need"]):
-                        leads.append({
-                            "platform": "hackernews",
-                            "channel": "HackerNews",
-                            "title": title,
-                            "body": hit.get("story_text", "")[:500] or title,
-                            "url": hit.get("url") or f"https://news.ycombinator.com/item?id={hit.get('objectID','')}",
-                            "author": hit.get("author", ""),
-                            "posted_at": datetime.fromtimestamp(hit.get("created_at_i", time.time())).isoformat()
-                        })
-            time.sleep(1)
-    except Exception as e:
-        print(f"[!] HN error: {e}")
+    seen_urls = set()
 
-    # ---- Source 2: HN "Ask HN: Who wants to be hired" monthly thread ----
+    # ---- Source 1: Reddit (most relevant freelance subreddits) ----
     try:
+        headers = {
+            "User-Agent": f"outreach-bot/1.0 (scan-{random.randint(1000,9999)})",
+            "Accept": "application/json"
+        }
+        # Rotate subreddit order so results vary each scan
+        SUBREDDITS = [
+            ("forhire", ["[hiring]", "hire", "need"]),
+            ("slavelabour", ["task", "help", "need", "build"]),
+            ("entrepreneur", ["looking for", "need a dev", "hire", "developer"]),
+            ("smallbusiness", ["website", "developer", "app", "automate"]),
+            ("webdev", ["hire", "freelance", "client", "looking for"]),
+            ("startups", ["looking for", "technical co-founder", "need dev", "mvp"]),
+        ]
+        random.shuffle(SUBREDDITS)
+
+        for sub, sub_keywords in SUBREDDITS[:4]:  # Pick 4 random subs each run
+            # Use 'new' and 'hot' alternately
+            sort_modes = ["new", "hot"]
+            sort = random.choice(sort_modes)
+            url = f"https://www.reddit.com/r/{sub}/{sort}.json?limit=50&t=week"
+            resp = requests.get(url, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                posts = resp.json().get("data", {}).get("children", [])
+                random.shuffle(posts)  # Shuffle so same sub gives different top results
+                for post in posts:
+                    pd = post.get("data", {})
+                    title = pd.get("title", "")
+                    body = pd.get("selftext", "")
+                    post_url = f"https://www.reddit.com{pd.get('permalink', '')}"
+
+                    if post_url in seen_urls:
+                        continue
+                    if _is_full_time_job(title + " " + body):
+                        continue
+                    if not _has_hire_intent(title, body):
+                        continue
+                    # Must have at least some skill match
+                    if not _has_skill_match(title, body) and sub not in ["forhire", "slavelabour"]:
+                        continue
+
+                    seen_urls.add(post_url)
+                    leads.append({
+                        "platform": "reddit",
+                        "channel": f"r/{sub}",
+                        "title": title,
+                        "body": body[:600],
+                        "url": post_url,
+                        "author": pd.get("author", ""),
+                        "posted_at": datetime.fromtimestamp(pd.get("created_utc", time.time())).isoformat()
+                    })
+            time.sleep(1.5)
+    except Exception as e:
+        print(f"[!] Reddit error: {e}")
+
+    # ---- Source 2: HN Freelancer / Who wants to hire thread ----
+    try:
+        # HN "Ask HN: Freelancer? Seeking work? — Hired? Seeking freelancers?" threads
+        # These monthly threads have BOTH sides — look for "seeking freelancers" posts
         params = {
-            "query": "Ask HN: Freelancer? Seeking work?",
+            "query": "Ask HN: Freelancer? Seeking work? Hired? Seeking freelancers?",
             "tags": "story",
-            "hitsPerPage": 5
+            "hitsPerPage": 3,
         }
         resp = requests.get(HN_ALGOLIA_URL, params=params, timeout=10)
         if resp.status_code == 200:
             for hit in resp.json().get("hits", []):
-                if "freelancer" in hit.get("title", "").lower() or "seeking work" in hit.get("title", "").lower():
-                    continue  # skip these — these are people seeking work, not hiring
-        
-        # Search HN for people looking to hire
-        params2 = {
-            "query": "who is hiring",
-            "tags": "story",
-            "hitsPerPage": 5
-        }
-        resp2 = requests.get(HN_ALGOLIA_URL, params=params2, timeout=10)
-        if resp2.status_code == 200:
-            for hit in resp2.json().get("hits", []):
-                if "who is hiring" in hit.get("title", "").lower():
-                    # Get comments of this thread
+                title = hit.get("title", "")
+                if "seeking freelancers" in title.lower() or "hired" in title.lower():
                     item_id = hit.get("objectID", "")
                     comments_resp = requests.get(
                         f"https://hn.algolia.com/api/v1/items/{item_id}", timeout=10
                     )
                     if comments_resp.status_code == 200:
-                        children = comments_resp.json().get("children", [])[:30]
-                        for comment in children:
+                        children = comments_resp.json().get("children", [])
+                        random.shuffle(children)  # Shuffle so we don't get the same comments
+                        for comment in children[:40]:
                             text = comment.get("text", "") or ""
-                            if any(kw in text.lower() for kw in HIRE_KEYWORDS):
-                                leads.append({
-                                    "platform": "hackernews",
-                                    "channel": "HN Who's Hiring",
-                                    "title": text[:100].strip(),
-                                    "body": re.sub('<[^<]+?>', '', text)[:500],
-                                    "url": f"https://news.ycombinator.com/item?id={comment.get('id', '')}",
-                                    "author": comment.get("author", ""),
-                                    "posted_at": datetime.now().isoformat()
-                                })
-                    break  # Only process the most recent hiring thread
+                            clean_text = re.sub('<[^<]+?>', '', text)
+                            if _has_skill_match("", clean_text) and len(clean_text) > 50:
+                                url = f"https://news.ycombinator.com/item?id={comment.get('id', '')}"
+                                if url not in seen_urls:
+                                    seen_urls.add(url)
+                                    leads.append({
+                                        "platform": "hackernews",
+                                        "channel": "HN Freelancer Thread",
+                                        "title": clean_text[:120].strip(),
+                                        "body": clean_text[:600],
+                                        "url": url,
+                                        "author": comment.get("author", ""),
+                                        "posted_at": datetime.now().isoformat()
+                                    })
+        time.sleep(1)
     except Exception as e:
         print(f"[!] HN thread error: {e}")
 
-    # ---- Source 3: Reddit (best-effort, may be blocked on cloud) ----
+    # ---- Source 3: DuckDuckGo search for high-intent posts on the web ----
     try:
-        print("[*] Trying Reddit for freelance leads...")
-        headers = {"User-Agent": "outreach-research-bot/0.1"}
-        SUBREDDITS = ["forhire", "entrepreneur", "startups", "webdev"]
-        for sub in SUBREDDITS:
-            url = f"https://www.reddit.com/r/{sub}/new.json?limit=30"
-            resp = requests.get(url, headers=headers, timeout=10)
-            if resp.status_code == 200:
-                for post in resp.json().get("data", {}).get("children", []):
-                    pd = post.get("data", {})
-                    title = pd.get("title", "")
-                    body = pd.get("selftext", "")
-                    if any(kw in (title + body).lower() for kw in ['hire', 'looking for', 'need developer', 'need help']):
+        from duckduckgo_search import DDGS
+        # Rotate queries so results vary
+        FREELANCE_QUERIES = [
+            '"looking for" "react developer" "freelance" -site:linkedin.com -site:indeed.com',
+            '"hire" "flutter developer" "project" -site:linkedin.com',
+            '"need a developer" "mvp" "startup" -site:linkedin.com',
+            '"looking for" "wordpress developer" "budget" -site:linkedin.com',
+            '"need help" "web app" "react" OR "node" freelance -site:linkedin.com',
+            '"need a freelancer" "web development" 2024 OR 2025',
+            '"hiring" "contract" "react" "short term" -site:linkedin.com -site:indeed.com',
+            '"can someone build" OR "who can build" "app" "react" OR "flutter"',
+        ]
+        selected_queries = random.sample(FREELANCE_QUERIES, min(3, len(FREELANCE_QUERIES)))
+        with DDGS() as ddgs:
+            for query in selected_queries:
+                try:
+                    results = ddgs.text(query, max_results=8)
+                    for r in results:
+                        url = r.get('href', '')
+                        if not url or url in seen_urls:
+                            continue
+                        title = r.get('title', '')
+                        snippet = r.get('body', '')
+                        if _is_full_time_job(title + snippet):
+                            continue
+                        seen_urls.add(url)
                         leads.append({
-                            "platform": "reddit",
-                            "channel": f"r/{sub}",
+                            "platform": "web",
+                            "channel": "DuckDuckGo Search",
                             "title": title,
-                            "body": body[:500],
-                            "url": f"https://www.reddit.com{pd.get('permalink', '')}",
-                            "author": pd.get("author", ""),
-                            "posted_at": datetime.fromtimestamp(pd.get("created_utc", time.time())).isoformat()
+                            "body": snippet[:600],
+                            "url": url,
+                            "author": "",
+                            "posted_at": datetime.now().isoformat()
                         })
-            time.sleep(2)
+                    time.sleep(1.5)
+                except Exception as e:
+                    print(f"[!] DDG query error: {e}")
     except Exception as e:
-        print(f"[!] Reddit error (may be blocked): {e}")
+        print(f"[!] DDG error: {e}")
 
+    # Shuffle final results for variety
+    random.shuffle(leads)
     print(f"[*] Total freelance leads scraped: {len(leads)}")
     return leads

@@ -7,16 +7,16 @@ from ai.freelance_scorer import score_freelance_lead, generate_freelance_message
 def run_freelance_scan():
     """Runs the scan and stores results in session_state."""
     st.session_state.freelance_leads = []
-    
-    progress = st.progress(0, text="Scraping Reddit and HackerNews...")
+
+    progress = st.progress(0, text="Scraping Reddit (r/forhire, r/slavelabour, r/entrepreneur)...")
     reddit_leads = scrape_reddit_leads()
-    
-    progress.progress(0.2, text="Searching LinkedIn for freelance posts...")
+
+    progress.progress(0.35, text="Searching LinkedIn for clients posting about hiring developers...")
     linkedin_leads = search_linkedin_leads(query_type="freelance")
-    
+
     raw_leads = reddit_leads + linkedin_leads
     results = []
-    
+
     for i, lead in enumerate(raw_leads):
         try:
             progress.progress((i + 1) / max(len(raw_leads), 1), text=f"Scoring lead {i+1}/{len(raw_leads)} with Gemini...")
@@ -36,7 +36,7 @@ def run_freelance_scan():
                 time.sleep(4.1)
         except Exception as e:
             st.warning(f"Skipped one lead: {e}")
-            
+
     progress.empty()
     st.session_state.freelance_leads = results
     st.session_state.last_scan_freelance = f"Found {len(results)} leads"
@@ -49,7 +49,7 @@ def get_classification(score):
 
 def render_freelance_tab():
     st.header("💼 Freelance Leads")
-    st.caption("Scrapes Reddit for immediate high-intent freelance gigs and scores them with Gemini.")
+    st.caption("Scrapes Reddit (r/forhire, r/slavelabour, r/entrepreneur), HN, and LinkedIn for high-intent clients needing React, Flutter, WordPress, automation.")
 
     col_scan, col_status = st.columns([2, 3])
     with col_scan:
@@ -58,41 +58,62 @@ def render_freelance_tab():
             run_freelance_scan()
             st.session_state.scan_running = False
             st.rerun()
-        st.caption("Sources: Reddit · HackerNews · LinkedIn Search")
+        st.caption("Sources: Reddit · HackerNews · LinkedIn · Web Search")
     with col_status:
         if st.session_state.last_scan_freelance:
             st.info(f"Last scan: {st.session_state.last_scan_freelance}")
 
     leads = st.session_state.freelance_leads
-    
+
     if not leads:
         st.info("No leads yet. Click **Run Freelance Scan** to start.")
         return
-    
+
+    # Show quick stats
+    high = sum(1 for l in leads if l.get('score', 0) >= 70)
+    maybe = sum(1 for l in leads if 50 <= l.get('score', 0) < 70)
+    st.caption(f"🏆 {high} high-value · 🤔 {maybe} maybe · Total: {len(leads)}")
+
     st.divider()
-    st.subheader(f"📋 {len(leads)} Leads Found")
+    st.subheader(f"📋 {len(leads)} Leads Found — Sorted by Score")
 
     for i, lead in enumerate(sorted(leads, key=lambda x: x.get('score', 0), reverse=True)):
         score = lead.get('score', 0)
         classification = get_classification(score)
-        
+
         with st.container(border=True):
             col1, col2 = st.columns([4, 1])
             with col1:
-                st.markdown(f"### {lead.get('title', 'Untitled')}")
+                platform_icons = {"reddit": "🟠", "hackernews": "🟡", "linkedin": "🔗", "web": "🌐"}
+                icon = platform_icons.get(lead.get('platform', ''), '📌')
+                st.markdown(f"### {icon} {lead.get('title', 'Untitled')}")
                 st.caption(f"**{lead.get('channel', '')}** · {lead.get('posted_at', '')[:10]}")
                 if lead.get('hidden_pain'):
                     st.warning(f"**Hidden Pain Detected:** {lead['hidden_pain']}")
                 if lead.get('fit_reason') or lead.get('service_match'):
                     st.success(f"**AI Opinion:** {lead.get('fit_reason') or lead.get('service_match')}")
+                urgency = lead.get('urgency', 'low')
+                if urgency == 'high':
+                    st.error(f"🔥 Urgency: HIGH — contact NOW")
+                elif urgency == 'medium':
+                    st.info(f"⚡ Urgency: Medium")
                 if lead.get('body'):
-                    st.write(lead['body'][:350] + "...")
+                    st.write(lead['body'][:400])
             with col2:
                 st.metric("Score", score)
                 st.markdown(f"**{classification}**")
-            
+
             st.markdown(f"[🔗 View Post]({lead.get('url', '#')})")
-            
+
             if lead.get('generated_message'):
                 with st.expander("💬 View Generated Message"):
                     st.text_area("Message", value=lead['generated_message'], height=150, key=f"fl_msg_{i}")
+            else:
+                if st.button("✨ Generate Message Now", key=f"fl_gen_{i}"):
+                    with st.spinner("Generating message..."):
+                        msg_data = generate_freelance_message(lead)
+                        message = msg_data.get("message", "")
+                        if not message:
+                            message = "Message generation failed — check GEMINI_API_KEY in Streamlit Cloud Secrets."
+                        st.session_state.freelance_leads[i]["generated_message"] = message
+                    st.rerun()
