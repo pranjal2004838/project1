@@ -2,7 +2,7 @@ import requests
 import time
 import re
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 HN_ALGOLIA_URL = "https://hn.algolia.com/api/v1/search"
 
@@ -15,32 +15,25 @@ HIRE_KEYWORDS = [
     'react developer', 'flutter developer', 'node developer', 'fullstack',
     'web developer', 'app developer', 'wordpress developer', 'wix developer',
     'anyone who can', 'can someone help', 'can anyone build',
-    'automate', 'automation', 'workflow', 'integrate', 'zap', 'zapier',
-    'make.com', 'n8n', 'airtable', 'notion', 'crm', 'wix',
+    'wix', 'wordpress', 'zapier', 'make.com', 'make automation', 'n8n', 
+    'automation', 'workflow', 'crm', 'integromat', 'app development',
+    'mobile app', 'ios app', 'android app', 'business automation',
 ]
 
 # Keywords that indicate it's a full-time job (EXCLUDE these)
 FULLTIME_EXCLUSIONS = [
     'full-time', 'full time', 'salary', 'equity', 'pto', 'benefits',
-    '40 hours', 'monday to friday', 'w2', 'h1b',
+    '40 hours', 'monday to friday', 'office', 'remote only', 'w2', 'h1b',
     'years of experience required', 'visa', 'relocation',
 ]
 
-# Skills Pranjal can offer — expanded with automation
+# Skills Pranjal can offer
 PRANJAL_SKILLS = [
-    # Dev
     'react', 'flutter', 'firebase', 'node', 'nodejs', 'wordpress', 'wix',
     'api', 'saas', 'mvp', 'mobile app', 'web app', 'booking', 'dashboard',
-    'automation', 'zapier', 'make.com', 'n8n', 'stripe', 'supabase',
-    'typescript', 'crm', 'landing page', 'ecommerce', 'shopify',
-    'next.js', 'nextjs', 'airtable', 'notion', 'webhook',
-    # Automation-specific
-    'workflow', 'integrate', 'automate', 'no-code', 'low-code',
-    'make ', 'zapier', 'integromat', 'pipedream', 'activepieces',
-    # Wix-specific
-    'wix', 'wix studio', 'wix velo', 'squarespace', 'webflow',
-    # App dev
-    'app development', 'mobile development', 'android', 'ios',
+    'automation', 'zapier', 'make.com', 'stripe', 'supabase', 'typescript',
+    'crm', 'landing page', 'ecommerce', 'shopify', 'next.js', 'nextjs',
+    'n8n', 'make', 'workflows', 'workflow automation', 'business automation',
 ]
 
 def _is_full_time_job(text: str) -> bool:
@@ -55,44 +48,41 @@ def _has_skill_match(title: str, body: str) -> bool:
     combined = (title + " " + body).lower()
     return any(kw in combined for kw in PRANJAL_SKILLS)
 
-
 def scrape_reddit_leads(max_age_hours=168):
     """
     Multi-source freelance lead scraper with randomization.
-    Covers: React/Flutter/Node dev, Wix, WordPress, automation (Zapier/Make/n8n).
-    Results rotate every scan using random subreddit order and sort modes.
+    Sources: Reddit r/forhire, r/entrepreneur, r/webdev, HackerNews freelancer thread.
+    Results rotate every scan using random time offsets and subreddit ordering.
     """
     leads = []
     seen_urls = set()
 
-    # ---- Source 1: Reddit ----
+    # ---- Source 1: Reddit (most relevant freelance subreddits) ----
     try:
         headers = {
             "User-Agent": f"outreach-bot/1.0 (scan-{random.randint(1000,9999)})",
             "Accept": "application/json"
         }
+        # Rotate subreddit order so results vary each scan
         SUBREDDITS = [
-            ("forhire", True),           # Always high-value, no skill filter needed
-            ("slavelabour", True),        # Always high-value
-            ("entrepreneur", False),
-            ("smallbusiness", False),
-            ("webdev", False),
-            ("startups", False),
-            ("zapier", True),             # Automation clients
-            ("nocode", True),             # No-code clients (Wix, Webflow, Airtable)
-            ("automation", True),         # Automation leads
-            ("wix", True),               # Direct Wix clients
-            ("wordpress", False),         # WordPress clients
+            ("forhire", ["[hiring]", "hire", "need"]),
+            ("slavelabour", ["task", "help", "need", "build"]),
+            ("entrepreneur", ["looking for", "need a dev", "hire", "developer"]),
+            ("smallbusiness", ["website", "developer", "app", "automate"]),
+            ("webdev", ["hire", "freelance", "client", "looking for"]),
+            ("startups", ["looking for", "technical co-founder", "need dev", "mvp"]),
         ]
         random.shuffle(SUBREDDITS)
 
-        for sub, no_filter_needed in SUBREDDITS[:5]:  # 5 random subs each run
-            sort = random.choice(["new", "hot"])
+        for sub, sub_keywords in SUBREDDITS[:4]:  # Pick 4 random subs each run
+            # Use 'new' and 'hot' alternately
+            sort_modes = ["new", "hot"]
+            sort = random.choice(sort_modes)
             url = f"https://www.reddit.com/r/{sub}/{sort}.json?limit=50&t=week"
             resp = requests.get(url, headers=headers, timeout=15)
             if resp.status_code == 200:
                 posts = resp.json().get("data", {}).get("children", [])
-                random.shuffle(posts)
+                random.shuffle(posts)  # Shuffle so same sub gives different top results
                 for post in posts:
                     pd = post.get("data", {})
                     title = pd.get("title", "")
@@ -103,9 +93,10 @@ def scrape_reddit_leads(max_age_hours=168):
                         continue
                     if _is_full_time_job(title + " " + body):
                         continue
-                    if not no_filter_needed and not _has_hire_intent(title, body):
+                    if not _has_hire_intent(title, body):
                         continue
-                    if not no_filter_needed and not _has_skill_match(title, body):
+                    # Must have at least some skill match
+                    if not _has_skill_match(title, body) and sub not in ["forhire", "slavelabour"]:
                         continue
 
                     seen_urls.add(post_url)
@@ -122,8 +113,10 @@ def scrape_reddit_leads(max_age_hours=168):
     except Exception as e:
         print(f"[!] Reddit error: {e}")
 
-    # ---- Source 2: HN Freelancer thread ----
+    # ---- Source 2: HN Freelancer / Who wants to hire thread ----
     try:
+        # HN "Ask HN: Freelancer? Seeking work? — Hired? Seeking freelancers?" threads
+        # These monthly threads have BOTH sides — look for "seeking freelancers" posts
         params = {
             "query": "Ask HN: Freelancer? Seeking work? Hired? Seeking freelancers?",
             "tags": "story",
@@ -140,7 +133,7 @@ def scrape_reddit_leads(max_age_hours=168):
                     )
                     if comments_resp.status_code == 200:
                         children = comments_resp.json().get("children", [])
-                        random.shuffle(children)
+                        random.shuffle(children)  # Shuffle so we don't get the same comments
                         for comment in children[:40]:
                             text = comment.get("text", "") or ""
                             clean_text = re.sub('<[^<]+?>', '', text)
@@ -161,43 +154,27 @@ def scrape_reddit_leads(max_age_hours=168):
     except Exception as e:
         print(f"[!] HN thread error: {e}")
 
-    # ---- Source 3: DuckDuckGo — dev + automation + Wix queries ----
+    # ---- Source 3: DuckDuckGo search for high-intent posts on the web ----
     try:
         from duckduckgo_search import DDGS
-
+        # Rotate queries so results vary
         FREELANCE_QUERIES = [
-            # React / Flutter / Node
             '"looking for" "react developer" "freelance" -site:linkedin.com -site:indeed.com',
             '"hire" "flutter developer" "project" -site:linkedin.com',
             '"need a developer" "mvp" "startup" -site:linkedin.com',
-            '"hiring" "contract" "react" OR "node" "short term" -site:indeed.com',
-            # Wix
-            '"need help" "wix" "website" "developer" OR "expert" -site:linkedin.com',
-            '"wix developer" "hire" OR "freelance" OR "need" -site:linkedin.com',
-            '"wix velo" "developer" "hire" OR "project"',
-            '"wix studio" "help" OR "hire" 2024 OR 2025',
-            # WordPress
             '"looking for" "wordpress developer" "budget" -site:linkedin.com',
-            '"wordpress" "fix" OR "build" "freelancer" -site:linkedin.com',
-            # Automation — Zapier / Make / n8n
-            '"need help" "zapier" "automation" OR "workflow" -site:linkedin.com',
-            '"looking for" "zapier" OR "make.com" OR "n8n" "expert" OR "developer"',
-            '"automate" "zapier" OR "make" "business" "help" -site:linkedin.com',
-            '"n8n" "workflow" "developer" OR "help" OR "hire"',
-            '"make.com" "automation" "need help" OR "hire" -site:linkedin.com',
-            '"business automation" "zapier" OR "make" "freelancer" OR "developer"',
-            '"workflow automation" "hire" OR "freelance" "developer" 2024 OR 2025',
-            '"crm automation" "zapier" OR "make" OR "n8n" "help"',
-            # App development
-            '"need a developer" "mobile app" "budget" -site:linkedin.com',
-            '"build me an app" OR "build my app" "react native" OR "flutter"',
-            '"app development" "freelancer" "budget" 2024 OR 2025 -site:indeed.com',
-            # General high-intent
-            '"can someone build" OR "who can build" "app" "react" OR "flutter" OR "node"',
+            '"need help" "web app" "react" OR "node" freelance -site:linkedin.com',
             '"need a freelancer" "web development" 2024 OR 2025',
+            '"hiring" "contract" "react" "short term" -site:linkedin.com -site:indeed.com',
+            '"can someone build" OR "who can build" "app" "react" OR "flutter"',
+            '"looking for" "wix developer" OR "wix website" -site:indeed.com',
+            '"hire" "zapier" OR "make.com" OR "n8n" "automation" OR "workflow"',
+            '"need help with" "crm" OR "workflow" OR "automation" "zapier" OR "make"',
+            '"hiring" "app developer" "flutter" OR "react native" OR "ios" OR "android"',
+            '"looking for" "mobile app" "mvp" "developer"',
+            '"need a freelancer" "n8n" OR "make.com" OR "zapier" OR "automation"',
         ]
-        selected_queries = random.sample(FREELANCE_QUERIES, min(5, len(FREELANCE_QUERIES)))
-
+        selected_queries = random.sample(FREELANCE_QUERIES, min(3, len(FREELANCE_QUERIES)))
         with DDGS() as ddgs:
             for query in selected_queries:
                 try:
@@ -226,6 +203,7 @@ def scrape_reddit_leads(max_age_hours=168):
     except Exception as e:
         print(f"[!] DDG error: {e}")
 
+    # Shuffle final results for variety
     random.shuffle(leads)
     print(f"[*] Total freelance leads scraped: {len(leads)}")
     return leads

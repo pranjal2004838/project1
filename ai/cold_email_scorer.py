@@ -5,7 +5,7 @@ You are evaluating a tech founder as a target for a cold email from Pranjal Jha.
 
 Pranjal's profile:
 - 3 years freelancing, 30+ projects delivered
-- Skills: React, Flutter, Firebase, Node.js, Wix, Supabase, WordPress, Zapier/Make/n8n automations
+- Skills: React, Flutter, Firebase, Node.js, Wix, Supabase
 - Goal: Short-term contract, code review, or small paid test task.
 
 Founder to evaluate:
@@ -15,22 +15,13 @@ Stack: {tech_stack}
 Company Size: {company_size}
 Activity: {activity_signal}
 
-IMPORTANT: Return ONLY a valid JSON object. No explanation, no markdown, just raw JSON.
-Example of expected output format:
-{{"score": 68, "fit_reason": "Active founder with React stack, clear product focus", "disqualify_reason": null, "pass": true}}
-
-Now evaluate the founder above and return a JSON object with these exact keys:
-- "score": an integer from 0 to 100 (NOT a string, NOT a placeholder — a real number like 65 or 82)
-- "fit_reason": 1-2 sentences — is this founder worth reaching out to and why
-- "disqualify_reason": null OR one of: "massive company", "not a tech product"
-- "pass": true if score >= 50
-
-Scoring rules — USE THE FULL 0-100 RANGE, be granular:
-- 85-100: Active small team founder, exact stack match, recently shipped
-- 70-84: Strong match — active startup, partial stack overlap
-- 50-69: Moderate — worth a try
-- 20-49: Weak — different domain or large company
-- 0-19: Not a startup or inactive
+Return ONLY a JSON object matching this schema strictly:
+{{
+  "score": 85,
+  "fit_reason": "Active tech founder of an early-stage company building in React/Node, representing a great outbound target.",
+  "disqualify_reason": null,
+  "pass": true
+}}
 """
 
 COLD_EMAIL_GENERATE_PROMPT = """
@@ -43,15 +34,18 @@ Stack: {tech_stack}
 Rules for the email:
 - Subject line: Casual, peer-to-peer. e.g., "Loved what you shipped at {company_name}", "React dev — can help you ship faster"
 - Tone: Peer-to-peer. "I can help you ship faster." DO NOT sound like a job applicant. DO NOT ask for an internship.
-- Body (2-3 sentences):
+- Body (2-3 sentences): 
   1. Acknowledge something specific they built or their tech stack.
   2. Briefly mention you are a dev with 3 years of experience and 30+ projects.
-  3. Offer to take some technical debt or feature backlog off their hands.
+  3. Offer to take some technical debt or feature backlog off their hands to help them move faster.
 - Closing: "Worth a quick chat?" or "If you need an extra set of hands, let me know."
 - Do NOT include generic greetings like "Hope this finds you well".
 
-IMPORTANT: Return ONLY valid JSON with this exact structure:
-{{"subject": "<specific subject, not generic>", "message": "<plain text email body>"}}
+Return JSON object:
+{{
+  "subject": "React dev — can help you ship company_name faster",
+  "message": "Write the full plain text email body here"
+}}
 """
 
 def score_cold_email_target(target_data: dict) -> dict:

@@ -6,9 +6,9 @@ You are evaluating an internship or short-term contract opportunity for Pranjal 
 Pranjal's profile:
 - 3rd year ECE student at JNTUH Hyderabad, available full-time for 2 months (summer)
 - 3 years freelancing, 30+ projects delivered
-- Skills: React, Flutter, Firebase, Node.js, REST APIs, MongoDB, MySQL, PHP, WordPress, Wix, Supabase, TypeScript, Zapier/Make/n8n automations
+- Skills: React, Flutter, Firebase, Node.js, REST APIs, MongoDB, MySQL, PHP, WordPress, Wix, Supabase, TypeScript
 - OSS: PRs merged into Mozilla, Zulip, OpenFoodFacts
-- Seeking: Paid internship OR short-term contract (2 months), Rs 8,000-20,000/month
+- Seeking: Paid internship OR short-term contract (2 months), ₹8,000–20,000/month
 
 Opportunity to evaluate:
 Company: {company}
@@ -18,26 +18,25 @@ Description: {description}
 Stack: {stack}
 Contact Info: {contact_type} - {contact_url}
 
-IMPORTANT: Return ONLY a valid JSON object. No explanation, no markdown, just raw JSON.
-Example of expected output format:
-{{"score": 74, "stage": "MVP", "angle": "Your stack exactly, can start next week", "fit_reason": "They use React + Firebase, exact match", "stack_overlap": ["React", "Firebase"], "urgency_signal": "Recent GitHub activity", "disqualify_reason": null, "pass": true}}
+Return ONLY a JSON object matching this schema strictly:
+{{
+  "score": 85,
+  "stage": "Growing",
+  "angle": "Your stack exactly, can start next week",
+  "fit_reason": "They are a growing startup looking for a developer to help with their frontend backlog, which is a great fit for your React experience.",
+  "stack_overlap": ["React", "TypeScript"],
+  "urgency_signal": "They recently posted about a feature launch backlog.",
+  "disqualify_reason": null,
+  "pass": true 
+}}
 
-Now evaluate the opportunity above and return a JSON object with these exact keys:
-- "score": an integer from 0 to 100 (NOT a string, NOT a placeholder — a real number like 72 or 88)
-- "stage": one of "Pre-MVP" | "MVP" | "Early traction" | "Growing"
-- "angle": one of "I build MVPs in FlutterFlow/Bubble" | "Can handle your feature backlog" | "Firebase + Node scalability" | "Your stack exactly, can start next week" | "Automation + integration specialist"
-- "fit_reason": 1-2 sentences — honest AI opinion, highlight any potential
-- "stack_overlap": array of matching skills (can be empty [])
-- "urgency_signal": what suggests they need someone now
-- "disqualify_reason": null OR reason (only disqualify if absolutely non-tech or massive company)
-- "pass": true if score >= 50
-
-Scoring rules — USE THE FULL 0-100 RANGE, be granular (e.g., 72, 88):
-- 85-100: Perfect match (exact stack + small team + active)
-- 70-84: Strong match
-- 50-69: Moderate match
-- 20-49: Weak match (wrong stack or larger team)
-- 0-19: Not a startup or completely inactive
+Scoring rules:
+- USE THE FULL 0-100 RANGE. Do not just use 0 or 100. Be granular (e.g., 72, 88).
+- 85–100: Perfect match (stack + small team + active).
+- 70–84: Strong match.
+- 50–69: Moderate match.
+- 20–49: Weak match (wrong stack or larger team).
+- 0–19: Not a startup or completely inactive.
 """
 
 def score_internship_opportunity(opp_data: dict) -> dict:
@@ -62,14 +61,17 @@ Identified Stage: {stage}
 Your Outreach Angle: {angle}
 Why it's a fit: {fit_reason}
 
-Tone: Peer-to-peer. Confident. Not desperate. Mention you are in Hyderabad available for 2 months, but focus on your 3 years of freelancing and OSS contributions.
+Tone: Peer-to-peer. Confident. Not desperate. Mention you are an ECE student in Hyderabad available for 2 months, but focus on your 3 years of freelancing and OSS contributions.
 
 Rules for the message:
 - The body MUST incorporate your specific outreach angle: "{angle}" seamlessly into the pitch.
 - Keep it concise, 3-4 sentences max.
 
-IMPORTANT: Return ONLY valid JSON with this exact structure:
-{{"subject": "<Subject line>", "message": "<Plain text email body>"}}
+Return JSON object:
+{{
+  "subject": "React developer available — noticed company",
+  "message": "Write the full plain text email body here"
+}}
 """
 
 def generate_internship_email(opp_data: dict) -> dict:
